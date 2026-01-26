@@ -521,5 +521,5 @@ write_hw_platform -fixed -include_bit -force -file $xsa_name
 puts "========================================================"
 puts " BUILD COMPLETE "
 puts " Bitstream location: [get_property DIRECTORY [get_runs impl_1]]/RISC_V_worker_PL_wrapper.bit"
-puts " XSA location:       [pwd]/$xsa_name"
+puts " XSA location:       [pwd]/../$xsa_name"
 puts "========================================================"
