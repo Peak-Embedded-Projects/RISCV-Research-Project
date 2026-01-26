@@ -3,7 +3,7 @@
 
 `define ASSERT(signal, value) \
         if (signal !== value) begin \
-            $display("[ERROR] in %m (%t): signal != value (%h != %h)", $time, signal, value); \
+            $error("[ERROR] in %m (%t): signal != value (%h != %h)", $time, signal, value); \
             $finish; \
         end
 

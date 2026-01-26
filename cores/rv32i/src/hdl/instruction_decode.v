@@ -1,7 +1,7 @@
 `timescale 1ns / 1ps
 
-`include "../include/rv32i_params.vh"
-`include "../include/rv32i_control.vh"
+`include "rv32i_params.vh"
+`include "rv32i_control.vh"
 
 
 module instruction_decode (
@@ -29,6 +29,8 @@ module instruction_decode (
     reg has_rd;
     reg has_func3;
     reg has_func7;
+    
+    reg [`INSTR_TYPE_WIDTH-1:0] instr_type;
 
     assign use_mem         = (opcode == `OPCODE_LOAD) || (opcode == `OPCODE_STORE);
     assign mem_is_write    = (opcode == `OPCODE_STORE);
@@ -48,7 +50,6 @@ module instruction_decode (
     assign func7           = has_func7 ? instr[31:25] : 7'b0;
 
     // Opcode decoder, determine instruction type
-    reg [`INSTR_TYPE_WIDTH-1:0] instr_type;
     always @(*) begin
         case (opcode)
             `OPCODE_LOAD, `OPCODE_OP_IMM, `OPCODE_JALR: instr_type = `INSTR_TYPE_I;

@@ -1,8 +1,7 @@
 `timescale 1ns / 1ps
 
-`include "../include/rv32i_params.vh"
-`include "../include/rv32i_control.vh"
-`include "../include/axi_configuration.vh"
+`include "rv32i_params.vh"
+`include "axi_configuration.vh"
 
 module full_cpu ();
 
@@ -14,25 +13,25 @@ module full_cpu ();
     wire                         AXI_AWVALID;
     wire                         AXI_AWREADY;
     wire [  `AXI_ADDR_WIDTH-1:0] AXI_AWADDR;
-    wire [                  2:0] AXI_AWPROT;
+    wire [  `AXI_PROT_WIDTH-1:0] AXI_AWPROT;
     wire                         AXI_WVALID;
     wire                         AXI_WREADY;
     wire [  `AXI_DATA_WIDTH-1:0] AXI_WDATA;
     wire [`AXI_STROBE_WIDTH-1:0] AXI_WSTRB;
     wire                         AXI_BVALID;
     wire                         AXI_BREADY;
-    wire [                  1:0] AXI_BRESP;
+    wire [  `AXI_RESP_WIDTH-1:0] AXI_BRESP;
     wire                         AXI_ARVALID;
     wire                         AXI_ARREADY;
     wire [  `AXI_ADDR_WIDTH-1:0] AXI_ARADDR;
-    wire [                  2:0] AXI_ARPROT;
+    wire [  `AXI_PROT_WIDTH-1:0] AXI_ARPROT;
     wire                         AXI_RVALID;
     wire                         AXI_RREADY;
     wire [  `AXI_DATA_WIDTH-1:0] AXI_RDATA;
-    wire [                  1:0] AXI_RRESP;
+    wire [  `AXI_RESP_WIDTH-1:0] AXI_RRESP;
 
 
-    // Memory
+    // Mocked Memory
     axi_memory_mock u_mem (
         .CLK (CLK),
         .RSTn(RSTn),
@@ -60,9 +59,8 @@ module full_cpu ();
 
     // CPU
     riscv_cpu u_cpu (
-        .CLK(CLK),
+        .CLK (CLK),
         .RSTn(RSTn),
-        .pc_stall(pc_stall),
 
         .M_AXI_AWVALID(AXI_AWVALID),
         .M_AXI_AWREADY(AXI_AWREADY),
@@ -82,7 +80,16 @@ module full_cpu ();
         .M_AXI_RVALID (AXI_RVALID),
         .M_AXI_RREADY (AXI_RREADY),
         .M_AXI_RDATA  (AXI_RDATA),
-        .M_AXI_RRESP  (AXI_RRESP)
+        .M_AXI_RRESP  (AXI_RRESP),
+
+        .cm_pc_stall(pc_stall),
+        .cm_pc_read_data(),
+        .cm_pc_we(1'b0),
+        .cm_pc_write_data(`DATA_WIDTH'b0),
+        .cm_regfile_addr(`REG_ADDR_WIDTH'b0),
+        .cm_regfile_read_data(),
+        .cm_regfile_we(1'b0),
+        .cm_regfile_write_data(`DATA_WIDTH'b0)
     );
 
     // task automatic display_results;

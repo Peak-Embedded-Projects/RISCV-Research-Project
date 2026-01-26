@@ -21,7 +21,7 @@ module memory_arbiter_tb ();
     wire [`AXI_STROBE_WIDTH-1:0] M_AXI_WSTRB;
     reg                          M_AXI_BVALID = 0;
     wire                         M_AXI_BREADY;
-    reg  [                  1:0] M_AXI_BRESP = 0;
+    reg  [  `AXI_RESP_WIDTH-1:0] M_AXI_BRESP = 0;
     wire                         M_AXI_ARVALID;
     reg                          M_AXI_ARREADY = 0;
     wire [  `AXI_ADDR_WIDTH-1:0] M_AXI_ARADDR;
@@ -29,7 +29,7 @@ module memory_arbiter_tb ();
     reg                          M_AXI_RVALID = 0;
     wire                         M_AXI_RREADY;
     reg  [  `AXI_DATA_WIDTH-1:0] M_AXI_RDATA = 0;
-    reg  [                  1:0] M_AXI_RRESP = 0;
+    reg  [  `AXI_RESP_WIDTH-1:0] M_AXI_RRESP = 0;
 
     // instruction fetching
     reg  [      `DATA_WIDTH-1:0] pc = 0;

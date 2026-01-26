@@ -1,6 +1,6 @@
 `timescale 1ns / 1ps
 
-`include "../include/axi_configuration.vh"
+`include "axi_configuration.vh"
 
 // AXI 4 Lite slave that can be used to mock memory
 module axi_memory_mock (

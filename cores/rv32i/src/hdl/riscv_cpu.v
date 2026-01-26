@@ -1,36 +1,44 @@
 `timescale 1ns / 1ps
 
-`include "../include/rv32i_params.vh"
-`include "../include/rv32i_control.vh"
-`include "../include/axi_configuration.vh"
+`include "rv32i_params.vh"
+`include "rv32i_control.vh"
+`include "axi_configuration.vh"
 
 
 module riscv_cpu (
     input CLK,
     input RSTn,
 
-    input pc_stall,
-
     // AXI4-lite connections to the memory
     output                         M_AXI_AWVALID,
     input                          M_AXI_AWREADY,
     output [  `AXI_ADDR_WIDTH-1:0] M_AXI_AWADDR,
-    output [                  2:0] M_AXI_AWPROT,
+    output [  `AXI_PROT_WIDTH-1:0] M_AXI_AWPROT,
     output                         M_AXI_WVALID,
     input                          M_AXI_WREADY,
     output [  `AXI_DATA_WIDTH-1:0] M_AXI_WDATA,
     output [`AXI_STROBE_WIDTH-1:0] M_AXI_WSTRB,
     input                          M_AXI_BVALID,
     output                         M_AXI_BREADY,
-    input  [                  1:0] M_AXI_BRESP,
+    input  [  `AXI_RESP_WIDTH-1:0] M_AXI_BRESP,
     output                         M_AXI_ARVALID,
     input                          M_AXI_ARREADY,
     output [  `AXI_ADDR_WIDTH-1:0] M_AXI_ARADDR,
-    output [                  2:0] M_AXI_ARPROT,
+    output [  `AXI_PROT_WIDTH-1:0] M_AXI_ARPROT,
     input                          M_AXI_RVALID,
     output                         M_AXI_RREADY,
     input  [  `AXI_DATA_WIDTH-1:0] M_AXI_RDATA,
-    input  [                  1:0] M_AXI_RRESP
+    input  [  `AXI_RESP_WIDTH-1:0] M_AXI_RRESP,
+
+    // connections to SOC Control Module
+    input                        cm_pc_stall,
+    output [    `DATA_WIDTH-1:0] cm_pc_read_data,
+    input                        cm_pc_we,
+    input  [    `DATA_WIDTH-1:0] cm_pc_write_data,
+    input  [`REG_ADDR_WIDTH-1:0] cm_regfile_addr,
+    output [    `DATA_WIDTH-1:0] cm_regfile_read_data,
+    input                        cm_regfile_we,
+    input  [    `DATA_WIDTH-1:0] cm_regfile_write_data
 );
 
     // we have the following transactions, each one has ready and valid signals
@@ -38,15 +46,16 @@ module riscv_cpu (
     // - PC - INSTRUCTION - DECODED - ALU_RESULT (- MEM_RESULT) - NEXT_PC
 
     // PC
-    reg pc_valid, pc_ready;
+    wire pc_valid, pc_ready;
     reg [`DATA_WIDTH-1:0] pc;
 
     // INSTRUCTION
-    reg instruction_valid, instruction_ready;
+    wire instruction_valid, instruction_ready;
     wire [`DATA_WIDTH-1:0] instruction;
 
     // DECODED
-    reg decoded_valid, decoded_ready;
+    reg  decoded_valid;
+    wire decoded_ready;
     wire                       is_jump;
     wire                       is_jalr;
     wire                       is_branch;
@@ -65,7 +74,7 @@ module riscv_cpu (
     wire [    `DATA_WIDTH-1:0] rs2;
 
     // EXECUTE_RESULT
-    reg execute_result_valid, execute_result_ready;
+    wire execute_result_valid, execute_result_ready;
     reg  [`DATA_WIDTH-1:0] write_back_data;
     wire                   take_branch;
     // take either or
@@ -76,45 +85,45 @@ module riscv_cpu (
     wire                   mem_result_ready;
 
     // NEXT_PC
-    reg next_pc_valid, next_pc_ready;
+    reg  next_pc_valid;
+    wire next_pc_ready;
     reg  [      `DATA_WIDTH-1:0] next_pc;
 
 
     // load/store
-    reg  [      `DATA_WIDTH-1:0] mem_addr;
-    reg  [      `DATA_WIDTH-1:0] mem_write_data;
-    reg  [      `DATA_WIDTH-1:0] mem_read_data;
-    reg  [`AXI_STROBE_WIDTH-1:0] mem_write_strobe;
+    wire [      `DATA_WIDTH-1:0] mem_addr;
+    wire [      `DATA_WIDTH-1:0] mem_write_data;
+    wire [      `DATA_WIDTH-1:0] mem_read_data;
+    wire [`AXI_STROBE_WIDTH-1:0] mem_write_strobe;
     wire [      `DATA_WIDTH-1:0] mem_wb_data;  // parsed by byte_reader
 
 
     // =====   Clocked Components    =====
 
     // PC generator
-    // do not accept the next pc if we are stalled or the current pc has not
-    // yet been transfered to the fetch unit.
-    assign next_pc_ready = !pc_stall & !pc_valid;
-    reg pc_waiting;
+    // do not accept the next pc if the current pc has not
+    // yet been transferred to the fetch unit.
+    reg                          pc_release_pending;
+    assign next_pc_ready = !pc_release_pending;
+    assign pc_valid = pc_release_pending && !cm_pc_stall;
     always @(posedge CLK or negedge RSTn) begin
         if (!RSTn) begin
             pc <= `BOOT_ADDR;
-            pc_valid <= 1'b0;
-            pc_waiting <= 1'b1;
+            pc_release_pending <= 1'b1;
         end else begin
-            if (next_pc_valid & next_pc_ready) begin
+            if (next_pc_valid && next_pc_ready) begin
                 // NEXT_PC transaction
                 pc <= next_pc;
-                pc_valid <= 1'b1;
-            end else if (pc_valid & pc_ready) begin
+                pc_release_pending <= 1'b1;
+            end else if (pc_valid && pc_ready) begin
                 // PC transaction
-                pc_valid <= 1'b0;
-            end else if (pc_waiting & !pc_stall) begin
-                // kick start cycle
-                pc_valid   <= 1'b1;
-                pc_waiting <= 1'b0;
+                pc_release_pending <= 1'b0;
+            end else if (cm_pc_stall && cm_pc_we) begin
+                pc <= cm_pc_write_data;
             end
         end
     end
+    assign cm_pc_read_data = pc;
 
     reg [`DATA_WIDTH-1:0] instruction_latched;
     assign instruction_ready = 1'b1;  // always ready
@@ -171,15 +180,19 @@ module riscv_cpu (
         .CLK (CLK),
         .RSTn(RSTn),
 
-        .read_enable (1'b1),
         .rs1_addr    (rs1_addr),
         .rs2_addr    (rs2_addr),
         .rs1         (rs1),
         .rs2         (rs2),
         // WRITE BACK on NEXT_PC transaction
-        .write_enable(do_write_back & next_pc_valid & next_pc_ready),
+        .write_enable(do_write_back && next_pc_valid && next_pc_ready),
         .write_addr  (rd_addr),
-        .write_data  (write_back_data)
+        .write_data  (write_back_data),
+
+        .extra_addr        (cm_regfile_addr),
+        .extra_read_data   (cm_regfile_read_data),
+        .extra_write_enable(cm_regfile_we),
+        .extra_write_data  (cm_regfile_write_data)
     );
 
     memory_arbiter u_memory_arbiter (
@@ -272,7 +285,7 @@ module riscv_cpu (
     // =====   Execute stage   =====
     // =====   Memory stage   =====
 
-    wire [`DATA_WIDTH-1:0] mem_addr_aux = use_mem ? rs1 + immediate : '0;
+    wire [`DATA_WIDTH-1:0] mem_addr_aux = use_mem ? rs1 + immediate : `DATA_WIDTH'b0;
     assign mem_addr = mem_is_write ? {mem_addr_aux[`DATA_WIDTH-1:2], 2'b00} : mem_addr_aux;
 
     byte_reader u_byte_reader (

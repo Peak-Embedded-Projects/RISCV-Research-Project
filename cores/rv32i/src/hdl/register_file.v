@@ -20,7 +20,7 @@
 // Additional Comments:
 // 
 //////////////////////////////////////////////////////////////////////////////////
-`include "../include/rv32i_params.vh"
+`include "rv32i_params.vh"
 
 
 module register_file (
@@ -28,22 +28,26 @@ module register_file (
     input RSTn,
 
     // READ
-    input read_enable,
-    input wire [`REG_ADDR_WIDTH-1:0] rs1_addr,
-    input wire [`REG_ADDR_WIDTH-1:0] rs2_addr,
-    output reg [`DATA_WIDTH-1:0] rs1,  // carries value that has been read with rs1_addr
-    output reg [`DATA_WIDTH-1:0] rs2,  // carries value that has been read with rs2_addr
+    input  wire [`REG_ADDR_WIDTH-1:0] rs1_addr,
+    input  wire [`REG_ADDR_WIDTH-1:0] rs2_addr,
+    output reg  [    `DATA_WIDTH-1:0] rs1,       // carries value that has been read with rs1_addr
+    output reg  [    `DATA_WIDTH-1:0] rs2,       // carries value that has been read with rs2_addr
 
     // WRITE
     input wire                       write_enable,
     input wire [`REG_ADDR_WIDTH-1:0] write_addr,    // specifies which register to write to
-    input wire [    `DATA_WIDTH-1:0] write_data     // value to write
+    input wire [    `DATA_WIDTH-1:0] write_data,    // value to write
 
+    // EXTRA (for reading and writing registers from outside the core while it is stopped)
+    input      [`REG_ADDR_WIDTH-1:0] extra_addr,
+    output reg [    `DATA_WIDTH-1:0] extra_read_data,
+    input                            extra_write_enable,
+    input      [    `DATA_WIDTH-1:0] extra_write_data
 );
 
     reg [`DATA_WIDTH-1:0] registers [1:`NUM_REGISTERS-1]; // skipping x0, which is hard-wired to 32'b0
 
-    // WRITE: clk and rst are the control signals
+    // WRITE
     integer reg_id;
     always @(posedge CLK or negedge RSTn) begin
         if (!RSTn) begin
@@ -52,22 +56,25 @@ module register_file (
             for (reg_id = 1; reg_id < `NUM_REGISTERS; reg_id = reg_id + 1) begin
                 registers[reg_id] <= 32'b0;
             end
-            rs1 <= 32'h0;
-            rs2 <= 32'h0;
-        end else if (write_enable == 1'b1 && write_addr != 5'b0) begin
-            registers[write_addr] <= write_data;
+        end else begin
+            if (write_enable && write_addr != `REG_ADDR_WIDTH'b0) begin
+                registers[write_addr] <= write_data;
+            end else if (extra_write_enable && extra_addr != `REG_ADDR_WIDTH'b0) begin
+                registers[extra_addr] <= extra_write_data;
+            end
         end
     end
 
     always @(*) begin
-        if (read_enable) begin
-            // Regfile read- forwarding is broken for instructions like lw x10, 12(x10); it causes a deadlock
-            // which I cannot solve for now
-            rs1 = (rs1_addr == 0) ? 32'h0 : registers[rs1_addr];
-            rs2 = (rs2_addr == 0) ? 32'h0 : registers[rs2_addr];
+        rs1 = (rs1_addr == `REG_ADDR_WIDTH'b0) ? 32'h0 : registers[rs1_addr];
+        rs2 = (rs2_addr == `REG_ADDR_WIDTH'b0) ? 32'h0 : registers[rs2_addr];
+    end
+
+    always @(posedge CLK or negedge RSTn) begin
+        if (!RSTn) begin
+            extra_read_data <= `DATA_WIDTH'b0;
         end else begin
-            rs1 = 32'h0;
-            rs2 = 32'h0;
+            extra_read_data <= (extra_addr == `REG_ADDR_WIDTH'b0) ? 32'h0 : registers[extra_addr];
         end
     end
 

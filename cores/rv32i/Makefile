@@ -22,6 +22,7 @@ DATA_DIR        := $(ROOT_DIR)/data
 
 # Project's subdirectories
 HDL_DIR         := $(SOURCE_DIR)/hdl
+INC_DIR			:= $(SOURCE_DIR)/include
 SIM_SRC_DIR     := $(SOURCE_DIR)/sim
 CONSTRAINTS_DIR := $(SOURCE_DIR)/constraints
 
@@ -101,7 +102,7 @@ $(VVP_DIR)/%.vvp: $(SIM_SRC_DIR)/%.v
 	@echo "Compiling testbench \"$(@F:.vvp=)\""
 	@mkdir -p $(VVP_DIR)/$* $(D_DIR)/$* $(LOG_DIR)
 	@iverilog $(IVERILOG_FLAGS) \
-		-Mall=$(D_DIR)/$*.d.raw -y $(HDL_DIR) -I $(<D) -I $(HDL_DIR) \
+		-Mall=$(D_DIR)/$*.d.raw -y $(HDL_DIR) -I $(<D) -I $(HDL_DIR) -I $(INC_DIR) \
 		-DDATA_DIR=\"$(DATA_DIR)/\" \
 		-o $@ $< > $(LOG_DIR)/compile_$(@F:.vvp=).txt 2>&1
 	@{ \
@@ -116,7 +117,7 @@ $(SIM_DIR)/component_testbenches/%/sim_output.txt: $(VVP_DIR)/component_testbenc
 	@mkdir -p $(@D)
 	@echo "Running testbench \"$*\""
 	@cd $(@D) && vvp $< > $@ 2>&1
-	@if grep -q "\[ERROR\]" "$@"; then \
+	@if grep -q "ERROR" "$@"; then \
 		cat $@; \
 		echo "  Error (see $@)"; \
 	fi
@@ -126,7 +127,7 @@ $(SIM_DIR)/progs/%/sim_output.txt: $(FULL_CPU_VVP) $(DATA_DIR)/%/program.hex $(D
 	@mkdir -p $(@D)
 	@echo "Running prog \"$*\""
 	@cd $(@D) && vvp $< +data=$(DATA_DIR)/$* > $@ 2>&1
-	@if grep -q "\[ERROR\]" "$@"; then \
+	@if grep -q "ERROR" "$@"; then \
 		cat $@; \
 		echo "  Error (see $@)"; \
 	fi

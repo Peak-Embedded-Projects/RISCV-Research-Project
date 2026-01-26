@@ -19,7 +19,7 @@
 // Additional Comments:
 // 
 //////////////////////////////////////////////////////////////////////////////////
-`include "../include/rv32i_params.vh"
+`include "rv32i_params.vh"
 
 
 module bram32 (

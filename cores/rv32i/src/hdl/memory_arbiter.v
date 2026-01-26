@@ -1,7 +1,7 @@
 `timescale 1ns / 1ps
 
-`include "../include/axi_configuration.vh"
-`include "../include/rv32i_params.vh"
+`include "axi_configuration.vh"
+`include "rv32i_params.vh"
 
 // god I wish we just enums
 `define STATE_WIDTH 4
@@ -23,22 +23,22 @@ module memory_arbiter (
     output reg                         M_AXI_AWVALID,
     input                              M_AXI_AWREADY,
     output reg [  `AXI_ADDR_WIDTH-1:0] M_AXI_AWADDR,
-    output reg [                  2:0] M_AXI_AWPROT,
+    output reg [  `AXI_PROT_WIDTH-1:0] M_AXI_AWPROT,
     output reg                         M_AXI_WVALID,
     input                              M_AXI_WREADY,
     output reg [  `AXI_DATA_WIDTH-1:0] M_AXI_WDATA,
     output reg [`AXI_STROBE_WIDTH-1:0] M_AXI_WSTRB,
     input                              M_AXI_BVALID,
     output reg                         M_AXI_BREADY,
-    input      [                  1:0] M_AXI_BRESP,
+    input      [  `AXI_RESP_WIDTH-1:0] M_AXI_BRESP,
     output reg                         M_AXI_ARVALID,
     input                              M_AXI_ARREADY,
     output reg [  `AXI_ADDR_WIDTH-1:0] M_AXI_ARADDR,
-    output reg [                  2:0] M_AXI_ARPROT,
+    output reg [  `AXI_PROT_WIDTH-1:0] M_AXI_ARPROT,
     input                              M_AXI_RVALID,
     output reg                         M_AXI_RREADY,
     input      [  `AXI_DATA_WIDTH-1:0] M_AXI_RDATA,
-    input      [                  1:0] M_AXI_RRESP,
+    input      [  `AXI_RESP_WIDTH-1:0] M_AXI_RRESP,
 
     // instruction fetching
     input                            pc_valid,
@@ -50,7 +50,7 @@ module memory_arbiter (
 
     // load/store
     input                              load_store_valid,
-    output reg                         load_store_ready,
+    output wire                        load_store_ready,
     input      [  `AXI_ADDR_WIDTH-1:0] load_store_addr,
     input                              load_store_is_write,
     input      [`AXI_STROBE_WIDTH-1:0] store_strobe,
@@ -120,8 +120,6 @@ module memory_arbiter (
             end
             `STATE_PC_DATA: begin
                 M_AXI_RREADY = instruction_ready;
-                instruction_valid = M_AXI_RVALID;
-                instruction = M_AXI_RDATA;
             end
             `STATE_L_DATA: begin
                 M_AXI_RREADY = 1'b1;
@@ -145,7 +143,6 @@ module memory_arbiter (
                 pc_ready = M_AXI_ARREADY;
             end
             `STATE_PC_DATA: begin
-                M_AXI_RREADY = instruction_ready;
                 instruction_valid = M_AXI_RVALID;
                 instruction = M_AXI_RDATA;
             end
