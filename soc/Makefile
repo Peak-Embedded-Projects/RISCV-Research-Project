@@ -57,7 +57,7 @@ riscv_worker_ps:
 			  --code      "$(CODE)"                        \
 			  --verbose   $(VERBOSITY)
 
-all: riscv_worker_pl riscv_worker_ps:
+all: riscv_worker_pl riscv_worker_ps
 
 clean_riscv_ip:
 	@echo "Removing ip_repos/..."
