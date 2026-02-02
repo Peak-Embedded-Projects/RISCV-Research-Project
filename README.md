@@ -49,3 +49,12 @@ The project's tree in the simplified form form looks as follows:
 * ```cores```: contains HDL implementations of soft-cores to verify + any build system they use
 * ```masterpc```: Master PC application
 * ```soc```: ARM Cortex application + full implementation including the selected core
+
+**WORK CURRENTLY BEING DONE HERE:** migrating from Makefile to python and tcl build system.
+- `scripts/` directory moved to the root
+- `config.json` is the file defining the project and target hardware
+- `riscv_build.py` main build script
+- md5 hash used to determine if ip is the latest version (locally)
+- `soc/` will contain in the future only sources for Vitis project and perhaps the one tcl
+script that defines the block diagram project
+- `build/` placed in the root will contain latest `xsa` and `elf`
