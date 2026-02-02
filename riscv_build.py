@@ -1,6 +1,8 @@
 import json
 import hashlib
 import subprocess
+import logging
+from datetime import datetime
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -9,6 +11,14 @@ BUILD_CACHE_DIR = Path(".build_cache")
 IP_REPO_DIR = Path("ip_repos")
 BUILD_SCRIPTS = Path("scripts")
 CORES_ROOT = Path("cores")
+LOGS_DIR = Path("logs")
+
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="[%(levelname)s] %(message)s",
+    handlers=[logging.StreamHandler()],
+)
 
 
 @dataclass(frozen=True)
@@ -47,6 +57,7 @@ class ip_core:
     ) -> None:
         ip_core_dir = CORES_ROOT / dir
         if not ip_core_dir.exists():
+            logging.error(f"IP core directory at: {ip_core_dir} doesn't exist")
             raise FileNotFoundError(
                 "[ERROR] IP core direcotry at: {} doesn't exist".format(
                     ip_core_dir.__str__()
@@ -100,11 +111,10 @@ class ip_core:
         """
         Build RISC-V IP only when the core is outdated or missing
         """
-        print("================================")
-        print("[INFO] {} checking status...".format(self.ip_name))
-        print("================================")
+        logging.info(f"{self.ip_name}: Checking status...")
 
         BUILD_CACHE_DIR.mkdir(exist_ok=True)
+        LOGS_DIR.mkdir(exist_ok=True)
 
         current_hash = self._compute_hash()
         stored_hash = ""
@@ -115,32 +125,33 @@ class ip_core:
                 stored_hash = f.read().strip()
 
         if current_hash == stored_hash and IP_REPO_DIR.exists():
-            print("================================")
-            print(
-                "[INFO] {} is up to date (v.{}). Skipping build...".format(
-                    self.ip_name, self.ip_version
-                )
+            logging.info(
+                f"{self.ip_name}: Up to date (v{self.ip_version}). Skipping build."
             )
-            print("================================")
             return
 
-        print("================================")
-        print("[INFO] {} is outdated or missing. Building...".format(self.ip_name))
-        print("================================")
+        logging.info(f"{self.ip_name}: Outdated or missing. Starting build...")
+        try:
+            self._package_riscv_ip(h)
 
-        self._package_riscv_ip(h)
+            with open(self.digest_file, "w") as f:
+                f.write(current_hash)
 
-        with open(self.digest_file, "w") as f:
-            f.write(current_hash)
+            logging.info(f"{self.ip_name}: Build complete successfully.")
 
-        print("================================")
-        print("[INFO] {} build complete".format(self.ip_name))
-        print("================================")
+        except subprocess.CalledProcessError:
+            logging.error(f"{self.ip_name}: Build failed. Aborting.")
+            exit(1)
 
     def _package_riscv_ip(self, h: hardware) -> None:
         """
         Execute Vivadp TCL script for building the IP Core
         """
+
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+
+        log_file = LOGS_DIR / f"{self.ip_name}_vivado_{timestamp}.log"
+        jou_file = LOGS_DIR / f"{self.ip_name}_vivado_{timestamp}.jou"
 
         tcl_script = BUILD_SCRIPTS / "package_riscv_ip.tcl"
 
@@ -159,17 +170,21 @@ class ip_core:
             "batch",
             "-source",
             str(tcl_script),
+            "-log",
+            str(log_file),
+            "-journal",
+            str(jou_file),
             "-tclargs",
         ] + tcl_args
 
-        print("================================")
-        print("[INFO] Running Vivado: {}".format(" ".join(cmd)))
-        print("================================")
+        logging.info(f"Running Vivado...")
+        logging.info(f"Command: {' '.join(cmd)}")
+        logging.info(f"Logs: {log_file}")
 
         try:
             subprocess.run(cmd, check=True)
         except subprocess.CalledProcessError as e:
-            print("[ERROR] Vivado IP Core build failed for: {}".format(self.ip_name))
+            logging.error(f"Vivado execution failed. Check log at: {log_file}")
             self.digest_file.unlink(missing_ok=True)
             raise e
 
