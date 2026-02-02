@@ -19,8 +19,8 @@ set ip_display_name "RISC-V 32i core with control module"
 set target_part    [lindex $argv 4]
 set core_name      [lindex $argv 5]
 # ================== File Paths ==================
-set sources_dir    "../cores/$core_name/src/hdl"
-set headers_dir    "../cores/$core_name/src/include"
+set sources_dir    "cores/$core_name/src/hdl"
+set headers_dir    "cores/$core_name/src/include"
 set output_repo    "ip_repos"
 
 # List of files to exclude (full paths or basenames)

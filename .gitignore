@@ -16,10 +16,11 @@ bin/
 log/
 simulation/
 soc/RISC_V_worker_PL_layer/
-soc/ip_repos/ISAE_user_risc_v_32i_cm_*/
+ip_repos/
 soc/build_riscv_worker_pl/
 soc/vitis_proj/
 soc/vitis_ws/
+.build_cache/
 
 # for Xilinx Vivado|ISE
 .Xil/
