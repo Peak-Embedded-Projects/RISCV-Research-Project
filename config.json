@@ -1,0 +1,27 @@
+{
+  "CORE": {
+    "DIR"            : "rv32i",
+    "IP_NAME"        : "risc_v_32i_cm",
+    "IP_VENDOR"      : "ISAE",
+    "IP_LIBRARY"     : "user",
+    "IP_VERSION"     : "1.0"
+  },
+  "PROJECT": {
+    "VIVADO": {
+      "PROJECT_NAME" : "RISC_V_worker_PL_layer",
+      "XSA"          : "riscv_worker_hardware.xsa"
+    },
+    "VITIS": {
+      "WORKSPACE"    : "vitis_ws",
+      "PLATFORM"     : "RISC_V_worker_PS_layer_platform",
+      "APPLICATION"  : "RISC_V_worker_PS_application",
+      "CODE"         : "zynq",
+      "VERBOSITY"    : "1"
+    }
+  },
+  "HARDWARE": {
+    "TARGET"         : "xc7z020clg400-1",
+    "BOARD"          : "digilentinc.com:zybo-z7-20:part0:1.2",
+    "CPU"            : "ps7_cortexa9_0"
+  }
+}
