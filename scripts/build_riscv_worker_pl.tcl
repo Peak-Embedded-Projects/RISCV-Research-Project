@@ -27,6 +27,7 @@ set ip_repo_dir     "ip_repos"
 set target_part     [lindex $argv 1]
 set board_part      [lindex $argv 2]
 set xsa_name        [lindex $argv 3]
+set vlnv_riscv      [lindex $argv 4]
 # How many threads should perform synthesis and implementation tasks
 set threads_num     2
 
