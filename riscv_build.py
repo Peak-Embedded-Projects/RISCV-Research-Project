@@ -3,6 +3,8 @@ import hashlib
 import subprocess
 import logging
 from datetime import datetime
+from abc import ABC, abstractmethod
+from typing import List
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -19,6 +21,113 @@ logging.basicConfig(
     format="[%(levelname)s] %(message)s",
     handlers=[logging.StreamHandler()],
 )
+
+
+class generic_design(ABC):
+    """
+    Abstract Base Class for hash versioned build artifact
+    """
+
+    def __init__(self, name: str, version: str):
+        self.name = name
+        self.version = version
+        self.digest_file = BUILD_CACHE_DIR / f"{self.name}.digest"
+
+    @abstractmethod
+    def _get_sources_for_hashing(self) -> List[Path]:
+        """
+        Return a list of file paths that contribute to the hash
+        """
+        pass
+
+    @abstractmethod
+    def _run_build_tool(self, h: "hardware", log_file: Path, jou_file: Path) -> None:
+        """
+        Execute the specific tool (Vivado/Vitis) command
+        """
+        pass
+
+    @property
+    @abstractmethod
+    def source_dir(self) -> Path:
+        """
+        Return the root source directory for this artifact
+        """
+        pass
+
+    def _compute_hash(self) -> str:
+        """
+        Compute MD5 hash for all relevant files
+        """
+
+        hasher = hashlib.md5()
+        files = sorted(self._get_sources_for_hashing())
+
+        for filepath in files:
+            if filepath.exists():
+                # hash relative path
+                try:
+                    rel_path = filepath.relative_to(self.source_dir)
+                except ValueError:
+                    # if file is outside source_dir (like a dependency) use full path
+                    rel_path = filepath.name
+
+                hasher.update(str(rel_path).encode("utf-8"))
+
+                with open(filepath, "rb") as f:
+                    while chunk := f.read(4096):
+                        hasher.update(chunk)
+
+        hasher.update(self.ip_version.encode("utf-8"))
+        self._add_extra_hash_content(hasher)
+
+        return hasher.hexdigest()
+
+    def _add_extra_hash_content(self, hasher):
+        """
+        Hook for subclasses to add non-file data to hash
+        (hashes of components that this object depends on;
+        ex: Vivado block design depends on RISCV IP Core)
+        """
+        pass
+
+    def build(self, h: "hardware") -> None:
+        """
+        Methodd defining the standard build workflow
+        """
+        logging.info(f"{self.name}: Checking status...")
+
+        BUILD_CACHE_DIR.mkdir(exist_ok=True)
+        LOGS_DIR.mkdir(exist_ok=True)
+
+        current_hash = self._compute_hash()
+        stored_hash = ""
+
+        if self.digest_file.exists():
+            with open(self.digest_file, "r") as f:
+                stored_hash = f.read().strip()
+
+        if current_hash == stored_hash and self._check_build_artifacts_exist():
+            logging.info(f"{self.name}: Up to date. Skipping build.")
+            return
+
+        logging.info(f"{self.name}: Outdated. Building...")
+
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        log_file = LOGS_DIR / f"{self.name}_{timestamp}.log"
+        jou_file = LOGS_DIR / f"{self.name}_{timestamp}.jou"
+
+        try:
+            self._run_build_tool(h, log_file, jou_file)
+
+            with open(self.digest_file, "w") as f:
+                f.write(current_hash)
+
+            logging.info(f"{self.name}: Build complete.")
+
+        except subprocess.CalledProcessError:
+            logging.error(f"{self.name}: Failed. See {log_file}")
+            exit(1)
 
 
 @dataclass(frozen=True)
@@ -189,6 +298,20 @@ class ip_core:
             raise e
 
 
+@dataclass
+class fpga_design:
+    """
+    Class implementing Vivado block diagram project for a complete PL layer
+    """
+
+    proj_name: str
+    xsa: str
+    hw: hardware
+    riscv_vlnv: str
+
+    digest_file: Path = field(init=False)
+
+
 if __name__ == "__main__":
     with open("config.json", "r") as f:
         config = json.load(f)
@@ -205,5 +328,8 @@ if __name__ == "__main__":
         ip_version=core_config["IP_VERSION"],
         hdl=core_config["HDL"],
     )
+
+    vivado_config = config["PROJECT"]["VIVADO"]
+    pl_layer = fpga_design()
 
     riscv_ip.build(hw)
