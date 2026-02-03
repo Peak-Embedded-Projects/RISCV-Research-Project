@@ -78,7 +78,7 @@ class generic_design(ABC):
                     while chunk := f.read(4096):
                         hasher.update(chunk)
 
-        hasher.update(self.ip_version.encode("utf-8"))
+        hasher.update(self.version.encode("utf-8"))
         self._add_extra_hash_content(hasher)
 
         return hasher.hexdigest()
@@ -95,6 +95,7 @@ class generic_design(ABC):
         """
         Methodd defining the standard build workflow
         """
+
         logging.info(f"{self.name}: Checking status...")
 
         BUILD_CACHE_DIR.mkdir(exist_ok=True)
@@ -140,51 +141,27 @@ class hardware:
     board: str
 
 
-@dataclass()
-class ip_core:
+class ip_core(generic_design):
     """
     Class implementing RISC-V IP Core used to create the IP for the worker
     """
 
-    dir: Path
-    ip_name: str
-    ip_vendor: str
-    ip_library: str
-    ip_version: str
-    hdl: str
+    def __init__(self, dir_name: str, config: dict) -> None:
+        self.core_dir = CORES_ROOT / dir_name
+        super().__init__(name=config["IP_NAME"], version=config["IP_VERSION"])
+        self.config = config
+        self.hdl = config.get("HDL", "verilog")
 
-    digest_file: Path = field(init=False)
+    @property
+    def source_dir(self) -> Path:
+        return self.core_dir
 
-    def __init__(
-        self,
-        dir: str,
-        ip_name: str,
-        ip_vendor: str,
-        ip_library: str,
-        ip_version: str,
-        hdl: str,
-    ) -> None:
-        ip_core_dir = CORES_ROOT / dir
-        if not ip_core_dir.exists():
-            logging.error(f"IP core directory at: {ip_core_dir} doesn't exist")
-            raise FileNotFoundError(
-                "[ERROR] IP core direcotry at: {} doesn't exist".format(
-                    ip_core_dir.__str__()
-                )
-            )
-
-        self.dir = ip_core_dir
-        self.ip_name = ip_name
-        self.ip_vendor = ip_vendor
-        self.ip_library = ip_library
-        self.ip_version = ip_version
-        self.hdl = hdl
-        self.digest_file = BUILD_CACHE_DIR / f"{self.ip_name}.digest"
-
-    def _compute_hash(self) -> str:
+    def _get_sources_for_hashing(self) -> List[Path]:
         """
-        Compute MD5 hash for all HDL source files in the IP Core direcotry
+        Collect HDL source files for hash
         """
+
+        src_dir = self.core_dir / "src"
 
         src_suffix = "*.v"
         hdr_suffix = "*.vh"
@@ -196,82 +173,27 @@ class ip_core:
             src_suffix = "*.vhd"
             hdr_suffix = ""
 
-        hasher = hashlib.md5()
-        files = []
         patterns = [p for p in [src_suffix, hdr_suffix, xdc_suffix] if p]
-        src_directory = self.dir.joinpath("src")
+        files = []
+        for p in patterns:
+            files.extend(src_dir.rglob(p))
 
-        for suffix in patterns:
-            for file in src_directory.rglob(suffix):
-                files.append(file)
+        return files
 
-        for filepath in sorted(files):
-            if filepath.is_file():
-                hasher.update(str(filepath.relative_to(self.dir)).encode("utf-8"))
-                with open(filepath, "rb") as f:
-                    while chunk := f.read(4096):
-                        hasher.update(chunk)
-
-        hasher.update(self.ip_version.encode("utf-8"))
-
-        return hasher.hexdigest()
-
-    def build(self, h: hardware) -> None:
+    def _run_build_tool(self, h: "hardware", log_file: Path, jou_file: Path) -> None:
         """
-        Build RISC-V IP only when the core is outdated or missing
+        Run TCL IP Core build script
         """
-        logging.info(f"{self.ip_name}: Checking status...")
-
-        BUILD_CACHE_DIR.mkdir(exist_ok=True)
-        LOGS_DIR.mkdir(exist_ok=True)
-
-        current_hash = self._compute_hash()
-        stored_hash = ""
-
-        # check for stored hash
-        if self.digest_file.exists():
-            with open(self.digest_file, "r") as f:
-                stored_hash = f.read().strip()
-
-        if current_hash == stored_hash and IP_REPO_DIR.exists():
-            logging.info(
-                f"{self.ip_name}: Up to date (v{self.ip_version}). Skipping build."
-            )
-            return
-
-        logging.info(f"{self.ip_name}: Outdated or missing. Starting build...")
-        try:
-            self._package_riscv_ip(h)
-
-            with open(self.digest_file, "w") as f:
-                f.write(current_hash)
-
-            logging.info(f"{self.ip_name}: Build complete successfully.")
-
-        except subprocess.CalledProcessError:
-            logging.error(f"{self.ip_name}: Build failed. Aborting.")
-            exit(1)
-
-    def _package_riscv_ip(self, h: hardware) -> None:
-        """
-        Execute Vivadp TCL script for building the IP Core
-        """
-
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-
-        log_file = LOGS_DIR / f"{self.ip_name}_vivado_{timestamp}.log"
-        jou_file = LOGS_DIR / f"{self.ip_name}_vivado_{timestamp}.jou"
 
         tcl_script = BUILD_SCRIPTS / "package_riscv_ip.tcl"
-
         tcl_args = [
-            self.ip_name,
-            self.ip_vendor,
-            self.ip_library,
-            self.ip_version,
+            self.name,
+            self.config["IP_VENDOR"],
+            self.config["IP_LIBRARY"],
+            self.version,
             h.target,
-            self.dir.name,
-        ]  # TODO: in the future add hdl argument as it is intended to support sv and vhd
+            self.core_dir.name,
+        ]
 
         cmd = [
             "vivado",
@@ -286,16 +208,19 @@ class ip_core:
             "-tclargs",
         ] + tcl_args
 
-        logging.info(f"Running Vivado...")
-        logging.info(f"Command: {' '.join(cmd)}")
-        logging.info(f"Logs: {log_file}")
+        logging.info(f"Running IP Packager...")
+        subprocess.run(cmd, check=True)
 
-        try:
-            subprocess.run(cmd, check=True)
-        except subprocess.CalledProcessError as e:
-            logging.error(f"Vivado execution failed. Check log at: {log_file}")
-            self.digest_file.unlink(missing_ok=True)
-            raise e
+    def _check_build_artifacts_exist(self) -> bool:
+        """
+        Check if the IP directory actually exists
+        """
+
+        expected_path = (
+            IP_REPO_DIR
+            / f"{self.config['IP_VENDOR']}_{self.config['IP_LIBRARY']}_{self.name}_{self.version}"
+        )
+        return expected_path.exists()
 
 
 @dataclass
@@ -320,16 +245,8 @@ if __name__ == "__main__":
     hw = hardware(target=hw_config["TARGET"], board=hw_config["BOARD"])
 
     core_config = config["CORE"]
-    riscv_ip = ip_core(
-        dir=core_config["DIR"],
-        ip_name=core_config["IP_NAME"],
-        ip_vendor=core_config["IP_VENDOR"],
-        ip_library=core_config["IP_LIBRARY"],
-        ip_version=core_config["IP_VERSION"],
-        hdl=core_config["HDL"],
-    )
-
-    vivado_config = config["PROJECT"]["VIVADO"]
-    pl_layer = fpga_design()
-
+    riscv_ip = ip_core(dir_name="rv32i", config=config["CORE"])
     riscv_ip.build(hw)
+
+    # vivado_config = config["PROJECT"]["VIVADO"]
+    # pl_layer = fpga_design()
