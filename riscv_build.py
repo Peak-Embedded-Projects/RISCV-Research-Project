@@ -223,18 +223,64 @@ class ip_core(generic_design):
         return expected_path.exists()
 
 
-@dataclass
-class fpga_design:
+class fpga_design(generic_design):
     """
     Class implementing Vivado block diagram project for a complete PL layer
     """
 
-    proj_name: str
-    xsa: str
-    hw: hardware
-    riscv_vlnv: str
+    def __init__(self, config: dict, dependencies: List[ip_core]) -> None:
+        self.proj_dir = BUILD_SCRIPTS / config["PROJECT_NAME"]
+        super().__init__(name=config["PROJECT_NAME"], version="1.0")
+        self.xsa = config["XSA"]
+        self.dependencies = dependencies
 
-    digest_file: Path = field(init=False)
+    @property
+    def source_dir(self) -> Path:
+        return self.proj_dir
+
+    def _get_sources_for_hashing(self) -> List[Path]:
+        """
+        Hash TCL script which recreates the block diagram project
+        """
+
+        files = []
+        files.extend(
+            self.proj_dir.glob("*.tcl")
+        )  # TODO: where to keep TCL for the block diagram?
+        return files
+
+    def _add_extra_hash_content(self, hasher):
+        """
+        Mix the current hashes of all IP Cores that this design depend on.
+        If an IP changes then an entire block diagram has to be rebuilt
+        """
+        for ip in self.dependencies:
+            ip_hash = ip._compute_hash()
+            hasher.update(ip_hash.encode("utf-8"))
+
+    def _run_build_tool(self, h: "hardware", log_file: Path, jou_file: Path) -> None:
+        """
+        Run TCL block diagram project build script
+        """
+
+        tcl_script = BUILD_SCRIPTS / "build_riscv_worker_pl.tcl"
+        tcl_args = [self.name, h.target, h.board, self.xsa]
+
+        cmd = [
+            "vivado",
+            "-mode",
+            "batch",
+            "-source",
+            str(tcl_script),
+            "-log",
+            str(log_file),
+            "-journal",
+            str(jou_file),
+            "-tclargs",
+        ] + tcl_args
+
+        logging.info(f"Running IP Packager...")
+        subprocess.run(cmd, check=True)
 
 
 if __name__ == "__main__":
@@ -248,5 +294,6 @@ if __name__ == "__main__":
     riscv_ip = ip_core(dir_name="rv32i", config=config["CORE"])
     riscv_ip.build(hw)
 
-    # vivado_config = config["PROJECT"]["VIVADO"]
-    # pl_layer = fpga_design()
+    vivado_config = config["PROJECT"]["VIVADO"]
+    pl_layer = fpga_design(vivado_config, [riscv_ip])
+    pl_layer.build(hw)
