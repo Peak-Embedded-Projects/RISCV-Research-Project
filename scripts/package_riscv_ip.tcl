@@ -21,7 +21,7 @@ set core_name      [lindex $argv 5]
 # ================== File Paths ==================
 set sources_dir    "cores/$core_name/src/hdl"
 set headers_dir    "cores/$core_name/src/include"
-set output_repo    "ip_repos"
+set output_repo    "build/ip_repos"
 
 # List of files to exclude (full paths or basenames)
 set exclude_list [list "axi_memory_mock.v" "bram32.v"]
