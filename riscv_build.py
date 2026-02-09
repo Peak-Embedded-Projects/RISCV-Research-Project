@@ -181,11 +181,14 @@ class ip_core(generic_design):
         elif self.hdl == "vhdl":
             src_suffix = "*.vhd"
             hdr_suffix = ""
-        # TODO: exclude everything that comes from sim/
+        
         patterns = [p for p in [src_suffix, hdr_suffix, xdc_suffix] if p]
         files = []
         for p in patterns:
-            files.extend(src_dir.rglob(p))
+            for path in src_dir.rglob(p):
+                # testbench sources excluded as they are not instantiating the IP Core
+                if "sim" not in path.parts:
+                    files.append(path)
 
         return files
 
