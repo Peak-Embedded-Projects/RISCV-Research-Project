@@ -10,10 +10,11 @@ from pathlib import Path
 
 
 BUILD_CACHE_DIR = Path(".build_cache")
-IP_REPO_DIR = Path("ip_repos")
+IP_REPO_DIR = Path("build/ip_repos")
 BUILD_SCRIPTS = Path("scripts")
 CORES_ROOT = Path("cores")
 LOGS_DIR = Path("logs")
+BUILD_DIR = Path("build")
 
 
 logging.basicConfig(
@@ -44,6 +45,13 @@ class generic_design(ABC):
     def _run_build_tool(self, h: "hardware", log_file: Path, jou_file: Path) -> None:
         """
         Execute the specific tool (Vivado/Vitis) command
+        """
+        pass
+
+    @abstractmethod
+    def _check_build_artifacts_exist(self) -> bool:
+        """
+        Look for any necessary directories that must exist in order to ensure the build
         """
         pass
 
@@ -100,6 +108,7 @@ class generic_design(ABC):
 
         BUILD_CACHE_DIR.mkdir(exist_ok=True)
         LOGS_DIR.mkdir(exist_ok=True)
+        BUILD_DIR.mkdir(exist_ok=True)
 
         current_hash = self._compute_hash()
         stored_hash = ""
@@ -172,7 +181,7 @@ class ip_core(generic_design):
         elif self.hdl == "vhdl":
             src_suffix = "*.vhd"
             hdr_suffix = ""
-
+        # TODO: exclude everything that comes from sim/
         patterns = [p for p in [src_suffix, hdr_suffix, xdc_suffix] if p]
         files = []
         for p in patterns:
@@ -229,7 +238,8 @@ class fpga_design(generic_design):
     """
 
     def __init__(self, config: dict, dependencies: List[ip_core]) -> None:
-        self.proj_dir = BUILD_SCRIPTS / config["PROJECT_NAME"]
+        # self.proj_dir = BUILD_SCRIPTS / config["PROJECT_NAME"]
+        self.proj_dir = BUILD_SCRIPTS
         super().__init__(name=config["PROJECT_NAME"], version="1.0")
         self.xsa = config["XSA"]
         self.dependencies = dependencies
@@ -264,7 +274,17 @@ class fpga_design(generic_design):
         """
 
         tcl_script = BUILD_SCRIPTS / "build_riscv_worker_pl.tcl"
-        tcl_args = [self.name, h.target, h.board, self.xsa]
+
+        # for now dependencies list will contain only one entrance (one core) but this is added like that in case we have to extend it
+        ip_vlnv = f'{self.dependencies[0].config["IP_VENDOR"]}:{self.dependencies[0].config["IP_LIBRARY"]}:{self.dependencies[0].name}:{self.dependencies[0].config["IP_VERSION"]}'
+        tcl_args = [
+            self.name,
+            h.target,
+            h.board,
+            self.xsa,
+            ip_vlnv,
+            self.dependencies[0].name,
+        ]
 
         cmd = [
             "vivado",
@@ -281,6 +301,13 @@ class fpga_design(generic_design):
 
         logging.info(f"Running IP Packager...")
         subprocess.run(cmd, check=True)
+
+    def _check_build_artifacts_exist(self) -> bool:
+        """
+        No need to check for anything. Defaults to True
+        """
+
+        return True
 
 
 if __name__ == "__main__":
