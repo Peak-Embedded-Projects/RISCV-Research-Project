@@ -21,6 +21,7 @@ soc/build_riscv_worker_pl/
 soc/vitis_proj/
 soc/vitis_ws/
 .build_cache/
+build/
 
 # for Xilinx Vivado|ISE
 .Xil/
