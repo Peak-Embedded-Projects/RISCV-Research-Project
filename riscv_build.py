@@ -181,7 +181,7 @@ class ip_core(generic_design):
         elif self.hdl == "vhdl":
             src_suffix = "*.vhd"
             hdr_suffix = ""
-        
+
         patterns = [p for p in [src_suffix, hdr_suffix, xdc_suffix] if p]
         files = []
         for p in patterns:

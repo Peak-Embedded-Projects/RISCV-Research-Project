@@ -5,5 +5,7 @@
       "BOARD"  : "digilentinc.com:zybo-z7-20:part0:1.2",
       "CPU"    : "ps7_cortexa9_0"
     }
-  }
+  },
+  "Lattice" : {},
+  "Intel": {}
 }
