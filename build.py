@@ -64,7 +64,7 @@ def get_riscv_cores() -> dict:
 @click.option("--board", type=str, help="FPGA Target Board (HARDWARE only)")
 @click.option("--core", type=str, help="RISC-V IP Core")
 def launch(
-    runtime: str, vendor: Optional[str], board: Optional[str], core: str
+    runtime: Optional[str], vendor: Optional[str], board: Optional[str], core: str
 ) -> None:
     """
     Interactive HDL Build Configuration tool
@@ -117,34 +117,40 @@ def launch(
 
         board = board_match
 
-        available_cores = get_riscv_cores()
-        available_cores_names = sorted(available_cores.keys())
-        if not core:
-            core = click.prompt(
-                "Select RISC-V Core",
-                type=click.Choice(available_cores, case_sensitive=False),
-            )
+    elif runtime == runtime_type.SIMULATION:
+        pass
+    else:
+        logging.error(f"{runtime} not supported")
+        exit(1)
 
-        core_name_match = next(
-            (c for c in available_cores_names if c.lower() == core.lower()), None
+    available_cores = get_riscv_cores()
+    available_cores_names = sorted(available_cores.keys())
+    if not core:
+        core = click.prompt(
+            "Select RISC-V Core",
+            type=click.Choice(available_cores, case_sensitive=False),
         )
-        if not core_name_match:
-            logging.error(
-                f"Core: {core} not found in the list. Available cores: {available_cores_names}"
-            )
-            exit(1)
 
-        core = core_name_match
-        selected_core_path = available_cores[core]
+    core_name_match = next(
+        (c for c in available_cores_names if c.lower() == core.lower()), None
+    )
+    if not core_name_match:
+        logging.error(
+            f"Core: {core} not found in the list. Available cores: {available_cores_names}"
+        )
+        exit(1)
 
-        click.secho("\n=== Configuration Summary ===", fg="green", bold=True)
-        click.echo(f"Runtime: {runtime}")
-        if runtime == "HARDWARE":
-            click.echo(f"Vendor:  {vendor}")
-            click.echo(f"Board:   {board}")
-        click.echo(f"Core:    {core}")
+    core = core_name_match
+    selected_core_path = available_cores[core]
 
-        # TODO: here the building begins
+    click.secho("\n=== Configuration Summary ===", fg="green", bold=True)
+    click.echo(f"Runtime: {runtime}")
+    if runtime == "HARDWARE":
+        click.echo(f"Vendor:  {vendor}")
+        click.echo(f"Board:   {board}")
+    click.echo(f"Core:    {core}")
+
+    # TODO: here the building begins
 
 
 if __name__ == "__main__":
