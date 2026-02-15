@@ -2,8 +2,10 @@ import json
 import click
 import logging
 from typing import Optional
-from pathlib import Path
+from pathlib import Path, PurePath
 from enum import StrEnum
+
+import platforms.xilinx.riscv_build_utils as rv
 
 BUILD_CACHE_DIR = Path(".build_cache")
 IP_REPO_DIR = Path("build/ip_repos")
@@ -13,6 +15,7 @@ BUILD_DIR = Path("build")
 
 HARDWARE_CONFIG_FILE = Path("hardware.json")
 CORES_ROOT = Path("cores")
+PLATFORMS_DIR = Path("platforms/")
 
 logging.basicConfig(
     level=logging.INFO,
@@ -54,6 +57,34 @@ def get_riscv_cores() -> dict:
     return {p.name: p for p in CORES_ROOT.iterdir() if p.is_dir()}
 
 
+def runtime_hardware_handler(
+    vendor: str, hw: rv.hardware, core: Path, hdl: str
+) -> None:
+    vendor_platform_path = PLATFORMS_DIR / vendor.lower()
+    core_config = {
+        "IP_NAME": f"{core}_{hdl}",
+        "IP_VENDOR": "ISAE",
+        "IP_LIBRARY": "user",
+        "IP_VERSION": "1.0",  # TODO: how to properly handle here the version of IP Core ?
+        "HDL": hdl,
+    }
+
+    rv.BUILD_CACHE_DIR = vendor_platform_path / rv.BUILD_CACHE_DIR
+    rv.IP_REPO_DIR = vendor_platform_path / rv.IP_REPO_DIR
+    rv.BUILD_SCRIPTS = vendor_platform_path / rv.BUILD_SCRIPTS
+    rv.LOGS_DIR = vendor_platform_path / rv.LOGS_DIR
+    rv.BUILD_DIR = vendor_platform_path / rv.BUILD_DIR
+
+    riscv_ip = rv.ip_core(core_dir=core, config=core_config)
+    riscv_ip.build(
+        hw
+    )  # TODO: files are generated yet error is returned, logs are not created
+
+
+def runtime_simulation_handler() -> None:
+    pass
+
+
 @click.command()
 @click.option(
     "--runtime",
@@ -63,8 +94,17 @@ def get_riscv_cores() -> dict:
 @click.option("--vendor", type=str, help="FPGA Vendor (HARDWARE only)")
 @click.option("--board", type=str, help="FPGA Target Board (HARDWARE only)")
 @click.option("--core", type=str, help="RISC-V IP Core")
+@click.option(
+    "--hdl",
+    type=click.Choice(["verilog", "vhdl", "systemverilog"], case_sensitive=False),
+    help="HDL of IP Core",
+)
 def launch(
-    runtime: Optional[str], vendor: Optional[str], board: Optional[str], core: str
+    runtime: Optional[str],
+    vendor: Optional[str],
+    board: Optional[str],
+    core: Optional[str],
+    hdl: Optional[str],
 ) -> None:
     """
     Interactive HDL Build Configuration tool
@@ -116,6 +156,7 @@ def launch(
             exit(1)
 
         board = board_match
+        board_params = available_boards[board_match]
 
     elif runtime == runtime_type.SIMULATION:
         pass
@@ -143,14 +184,33 @@ def launch(
     core = core_name_match
     selected_core_path = available_cores[core]
 
+    if not hdl:
+        hdl = click.prompt(
+            "Select HDL OF IP Core",
+            type=click.Choice(
+                ["verilog", "vhdl", "systemverilog"], case_sensitive=False
+            ),
+            default="verilog",
+        )
+    hdl = hdl.lower()
+
     click.secho("\n=== Configuration Summary ===", fg="green", bold=True)
     click.echo(f"Runtime: {runtime}")
     if runtime == "HARDWARE":
         click.echo(f"Vendor:  {vendor}")
         click.echo(f"Board:   {board}")
     click.echo(f"Core:    {core}")
+    click.echo(f"HDL:    {hdl}")
 
-    # TODO: here the building begins
+    if runtime == runtime_type.HARDWARE:
+        hw = rv.hardware(
+            target=board_params["TARGET"],
+            board=board_params["BOARD"],
+            cpu=board_params["CPU"],
+        )
+        runtime_hardware_handler(vendor=vendor, hw=hw, core=selected_core_path, hdl=hdl)
+    else:
+        pass
 
 
 if __name__ == "__main__":
