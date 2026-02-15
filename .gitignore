@@ -42,6 +42,7 @@ xvlog.*
 *.debug
 *.ip_user_files
 *.xsa
+__pycache__/
 
 # for ESP32
 src/esp/build/
