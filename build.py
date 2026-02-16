@@ -62,7 +62,7 @@ def runtime_hardware_handler(
 ) -> None:
     vendor_platform_path = PLATFORMS_DIR / vendor.lower()
     core_config = {
-        "IP_NAME": f"{core}_{hdl}",
+        "IP_NAME": f"{core.name}_{hdl}",
         "IP_VENDOR": "ISAE",
         "IP_LIBRARY": "user",
         "IP_VERSION": "1.0",  # TODO: how to properly handle here the version of IP Core ?
@@ -75,10 +75,11 @@ def runtime_hardware_handler(
     rv.LOGS_DIR = vendor_platform_path / rv.LOGS_DIR
     rv.BUILD_DIR = vendor_platform_path / rv.BUILD_DIR
 
+    click.secho(f"\n=== Building {core.name}_{hdl} ===", fg="green", bold=True)
     riscv_ip = rv.ip_core(core_dir=core, config=core_config)
     riscv_ip.build(
         hw
-    )  # TODO: files are generated yet error is returned, logs are not created
+    )
 
 
 def runtime_simulation_handler() -> None:
