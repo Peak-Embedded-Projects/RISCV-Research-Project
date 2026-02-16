@@ -86,6 +86,13 @@ def runtime_hardware_handler(
     pl_layer = rv.fpga_design(config=block_diagram_config, dependencies=[riscv_ip])
     pl_layer.build(hw)
 
+    soc_config = {
+      "WORKSPACE"    : "vitis_ws",
+      "PLATFORM"     : "RISC_V_worker_PS_layer_platform",
+      "APPLICATION"  : "RISC_V_worker_PS_application",
+
+    }
+
 
 @click.command()
 @click.option(
