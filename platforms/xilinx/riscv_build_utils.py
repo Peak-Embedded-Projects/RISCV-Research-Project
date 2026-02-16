@@ -118,6 +118,7 @@ class generic_design(ABC):
 
         if current_hash == stored_hash and self._check_build_artifacts_exist():
             logging.info(f"{self.name}: Up to date. Skipping build.")
+            logging.info(f"{self.name}: Latest build inside {BUILD_DIR}.")
             return
 
         logging.info(f"{self.name}: Outdated. Building...")
