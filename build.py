@@ -7,11 +7,6 @@ from enum import StrEnum
 
 import platforms.xilinx.riscv_build_utils as rv
 
-BUILD_CACHE_DIR = Path(".build_cache")
-IP_REPO_DIR = Path("build/ip_repos")
-BUILD_SCRIPTS = Path("scripts")
-LOGS_DIR = Path("logs")
-BUILD_DIR = Path("build")
 
 HARDWARE_CONFIG_FILE = Path("hardware.json")
 CORES_ROOT = Path("cores")
@@ -60,9 +55,13 @@ def get_riscv_cores() -> dict:
 def runtime_hardware_handler(
     vendor: str, hw: rv.hardware, core: Path, hdl: str
 ) -> None:
+    
+    ip_name = f"{core.name}_{hdl}"
+    xsa_name = ip_name + "_hardware.xsa"
+
     vendor_platform_path = PLATFORMS_DIR / vendor.lower()
     core_config = {
-        "IP_NAME": f"{core.name}_{hdl}",
+        "IP_NAME": ip_name,
         "IP_VENDOR": "ISAE",
         "IP_LIBRARY": "user",
         "IP_VERSION": "1.0",  # TODO: how to properly handle here the version of IP Core ?
@@ -77,13 +76,15 @@ def runtime_hardware_handler(
 
     click.secho(f"\n=== Building {core.name}_{hdl} ===", fg="green", bold=True)
     riscv_ip = rv.ip_core(core_dir=core, config=core_config)
-    riscv_ip.build(
-        hw
-    )
+    riscv_ip.build(hw)
 
-
-def runtime_simulation_handler() -> None:
-    pass
+    block_diagram_config = {
+      "PROJECT_NAME" : "RISC_V_worker_PL_layer",
+      "XSA"          : xsa_name
+    }
+    click.secho(f"\n=== Building {block_diagram_config["PROJECT_NAME"]} ===", fg="green", bold=True)
+    pl_layer = rv.fpga_design(config=block_diagram_config, dependencies=[riscv_ip])
+    pl_layer.build(hw)
 
 
 @click.command()
