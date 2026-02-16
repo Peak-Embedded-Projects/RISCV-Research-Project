@@ -18,17 +18,20 @@
 # vivado -mode gui -source RISC_V_worker_PL_layerl.tcl 
 # This will open the block diagram in GUI mode, then you can fix it, export it to TCL and manually fix section
 # 2 of this script to match what Vivado has generated.
+# REMARKS: the usage described above is DEPRECATED. Currently the build.py script from project's root directory
+#          launches this script, therefore running it from here will result in errors due to paths taylored
+#          to build.py runtime.
 # =============================================================================================================
 
 # ================== 1. Configuration ==================
 set project_name    [lindex $argv 0]
-set ip_repo_dir     "build/ip_repos"
+set ip_repo_dir     "platforms/xilinx/build/ip_repos"
 set target_part     [lindex $argv 1]
 set board_part      [lindex $argv 2]
 set xsa_name        [lindex $argv 3]
 set vlnv_riscv      [lindex $argv 4]
 set riscv_mod_name  [lindex $argv 5]
-set output_dir      "build/build_riscv_worker_pl_${riscv_mod_name}"
+set output_dir      "platforms/xilinx/build/build_riscv_worker_pl_${riscv_mod_name}"
 # How many threads should perform synthesis and implementation tasks
 set threads_num     2
 
