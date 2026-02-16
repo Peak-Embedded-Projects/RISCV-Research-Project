@@ -8,6 +8,9 @@
 # vivado -mode batch -source build_riscv_worker_pl.tcl (non-GUI mode) (doesn't work standalone: check the script)
 # or
 # vivado -mode gui -source RISC_V_worker_PL_layerl.tcl (GUI mode)
+# REMARKS: the usage described above is DEPRECATED. Currently it is assumed to run this script via build.py 
+#          from project's root directory. Running it from this directory will result in errors due to paths
+#          being taylored to build.py.
 # =============================================================================================================
 
 # ==================Project Settings ==================
