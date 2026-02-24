@@ -90,7 +90,6 @@ def runtime_hardware_handler(
       "WORKSPACE"    : "vitis_ws",
       "PLATFORM"     : "RISC_V_worker_PS_layer_platform",
       "APPLICATION"  : "RISC_V_worker_PS_application",
-
     }
 
 
