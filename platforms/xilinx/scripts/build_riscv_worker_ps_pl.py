@@ -2,11 +2,9 @@
 The following script allows for automatic Vitis project generation.
 It will copy files from the provided with --code directory and include
 them into application component which will be compiled.
-Example command (use only from Makefile!!!):
-vitis -s build_riscv_worker_ps_pl.py --workspace "../vitis_ws" --hw_design "../riscv_worker_hardware.xsa" --code "../zynq" --verbose 1
+Currently this script is intended to be run by riscv_build_utils.py via build.py (from the root directory).
 
-Current issues:
-Vitis COPIES source files, therefore so far it works ok, when the source code is complete and we want to generate the project
+REMARKS: Vitis COPIES source files, therefore so far it works ok, when the source code is complete and we want to generate the project
 and program the device. Unfortunately, as Vitis project directory is not included in the source control any source file modified there
 will not be updated for the repository. I have tried to delete the application component but then somehow when I recreate it
 add again files it fails to compile probelms with retargetting application to the platform- I don't know how to resolve that in an elegant way.
