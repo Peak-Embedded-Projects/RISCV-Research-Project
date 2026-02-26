@@ -14,11 +14,17 @@ For now deleting entire project and rebuilding it from scratch with this script 
 I might try with symlinks later...
 """
 
+import logging
 import argparse
 import os
-import shutil
 
 import vitis
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="[%(levelname)s] %(message)s",
+    handlers=[logging.StreamHandler()],
+)
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -82,19 +88,19 @@ def build_parser() -> argparse.ArgumentParser:
 
     return parser
 
+
 def main() -> None:
-    """Create Vitis project based on the parser input.
-    """
+    """Create Vitis project based on the parser input."""
     parser = build_parser()
     vitis_args = parser.parse_args()
 
     abs_workspace = os.path.abspath(vitis_args.workspace)
-    abs_hw        = os.path.abspath(vitis_args.hw_design)
-    abs_code      = os.path.abspath(vitis_args.code)
+    abs_hw = os.path.abspath(vitis_args.hw_design)
+    abs_code = os.path.abspath(vitis_args.code)
 
-    domain_name = "standalone_".join(vitis_args.cpu)
+    domain_name = f"standalone_{vitis_args.cpu}"
 
-    if (vitis_args.verbose == 1):
+    if vitis_args.verbose == 1:
         print("===================================")
         print("= Workspace  : {}".format(abs_workspace))
         print("= Platform   : {}".format(vitis_args.platform))
@@ -106,22 +112,25 @@ def main() -> None:
 
     # Vitis Python API creates the project
     client = vitis.create_client()
-    client.set_workspace(path=abs_workspace) # make sure to always exit any Vitis GUI session open in the worspace you want to use here,
-                                             # otherwise it will crash
+    client.set_workspace(
+        path=abs_workspace
+    )  # make sure to always exit any Vitis GUI session open in the worspace you want to use here,
+    # otherwise it will crash
 
     if not os.path.exists(os.path.join(abs_workspace, vitis_args.platform)):
         print("===================================")
         print("= Creating platform: {}".format(vitis_args.platform))
         advanced_options = client.create_advanced_options_dict(dt_overlay="0")
 
-        platform = client.create_platform_component(name=vitis_args.platform,
-                                                    hw_design=abs_hw,
-                                                    os="standalone",
-                                                    cpu=vitis_args.cpu,
-                                                    domain_name=domain_name,
-                                                    generate_dtb=False,
-                                                    advanced_options=advanced_options,
-                                                    compiler="gcc"
+        platform = client.create_platform_component(
+            name=vitis_args.platform,
+            hw_design=abs_hw,
+            os="standalone",
+            cpu=vitis_args.cpu,
+            domain_name=domain_name,
+            generate_dtb=False,
+            advanced_options=advanced_options,
+            compiler="gcc",
         )
 
         print("= Building platform")
@@ -139,16 +148,24 @@ def main() -> None:
 
     status = platform.update_desc(desc="PS layer of the worker")
 
-    xpfm_path = os.path.join(abs_workspace, vitis_args.platform, "export", vitis_args.platform, "{}.xpfm".format(vitis_args.platform))
+    xpfm_path = os.path.join(
+        abs_workspace,
+        vitis_args.platform,
+        "export",
+        vitis_args.platform,
+        "{}.xpfm".format(vitis_args.platform),
+    )
     if not os.path.exists(os.path.join(abs_workspace, vitis_args.application)):
         print("===================================")
         print("= Creating application: {}".format(vitis_args.application))
         print("===================================")
-        comp = client.create_app_component(name=vitis_args.application,
-                                        platform=xpfm_path,
-                                        domain=domain_name,
-                                        template="empty_application"
+        comp = client.create_app_component(
+            name=vitis_args.application,
+            platform=xpfm_path,
+            domain=domain_name,
+            template="empty_application",
         )
+
     else:
         print("===================================")
         print("= Application: {} already exists".format(vitis_args.application))
@@ -165,24 +182,14 @@ def main() -> None:
     user_src_dir = os.path.join(abs_code, "src")
     user_inc_dir = os.path.join(abs_code, "include")
 
-    def copy_files(src_dir, dst_dir, ext_filter=None):
-        if not os.path.exists(src_dir):
-            raise FileNotFoundError("Directory {} does not exist.".format(src_dir))
-        
-        if not os.path.exists(dst_dir):
-            os.makedirs(dst_dir, exist_ok=True)
+    if os.path.exists(user_src_dir):
+        comp.import_files(
+            from_loc=user_src_dir, files=["*.c", "*.cpp", "*.h"], dest_dir_in_cmp="src"
+        )
 
-        for item in os.listdir(src_dir):
-            s = os.path.join(src_dir, item)
-            d = os.path.join(dst_dir, item)
-            if os.path.isfile(s):
-                if ext_filter and not item.endswith(ext_filter):
-                    continue
-                shutil.copy2(s, d)
-                print("Imported: {}".format(item))
-    
-    copy_files(user_src_dir, app_src_dir)
-    copy_files(user_inc_dir, app_src_dir)
+    # Import include files
+    if os.path.exists(user_inc_dir):
+        comp.import_files(from_loc=user_inc_dir, files=["*.h"], dest_dir_in_cmp="src")
 
     print("===================================")
     print("= Building application")
@@ -191,7 +198,13 @@ def main() -> None:
 
     print("===================================")
     print("= Build complete!")
-    print("ELF: {}".format(os.path.join(abs_workspace, vitis_args.application, 'build', domain_name, 'app.elf')))
+    print(
+        "ELF: {}".format(
+            os.path.join(
+                abs_workspace, vitis_args.application, "build", domain_name, "app.elf"
+            )
+        )
+    )
     print("===================================")
 
     vitis.dispose()
