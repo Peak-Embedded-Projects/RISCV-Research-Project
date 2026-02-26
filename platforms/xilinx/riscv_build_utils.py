@@ -1,3 +1,10 @@
+"""
+This Python file contains implementations of classes which handle different stages
+of project build workflow.
+They use hash computations in order to deduce whether to rebuild a particular stage
+or not.
+"""
+
 import hashlib
 import subprocess
 import logging
