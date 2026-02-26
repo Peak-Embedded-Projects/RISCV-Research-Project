@@ -51,7 +51,8 @@ def get_riscv_cores() -> dict:
 
     return {p.name: p for p in CORES_ROOT.iterdir() if p.is_dir()}
 
-
+# TODO: move xilinx implementation to a separate function, this function should
+#       be imported from platforms/xilinx/ directory
 def runtime_hardware_handler(
     vendor: str, hw: rv.hardware, core: Path, hdl: str
 ) -> None:
@@ -73,6 +74,8 @@ def runtime_hardware_handler(
     rv.BUILD_SCRIPTS = vendor_platform_path / rv.BUILD_SCRIPTS
     rv.LOGS_DIR = vendor_platform_path / rv.LOGS_DIR
     rv.BUILD_DIR = vendor_platform_path / rv.BUILD_DIR
+    rv.C_SRC = vendor_platform_path / rv.C_SRC
+    rv.INC_FILES = vendor_platform_path / rv.INC_FILES
 
     click.secho(f"\n=== Building {core.name}_{hdl} ===", fg="green", bold=True)
     riscv_ip = rv.ip_core(core_dir=core, config=core_config)
@@ -92,6 +95,9 @@ def runtime_hardware_handler(
       "APPLICATION"  : "RISC_V_worker_PS_application",
     }
 
+    click.secho(f"\n=== Building {soc_config["PLATFORM"]} ===", fg="green", bold=True)
+    ps_layer = rv.soc_design(config=soc_config, pl_layer=pl_layer)
+    ps_layer.build(hw)
 
 @click.command()
 @click.option(
