@@ -21,25 +21,25 @@ uint32_t cm_create_address(enum component_type comp, uint16_t request) {
   switch (comp) {
 
   case REGFILE:
-    return XPAR_RISC_V_32I_CM_0_BASEADDR + request;
+    return XPAR_RISCV_MOD_NAME_BASEADDR + request;
 
   case PC:
-    return XPAR_RISC_V_32I_CM_0_BASEADDR + PC_REQUEST;
+    return XPAR_RISCV_MOD_NAME_BASEADDR + PC_REQUEST;
 
   case BRAM:
     return XPAR_XBRAM_0_BASEADDR;
 
   case STEP:
-    return XPAR_RISC_V_32I_CM_0_BASEADDR + STEP_REQUEST;
+    return XPAR_RISCV_MOD_NAME_BASEADDR + STEP_REQUEST;
 
   case START:
-    return XPAR_RISC_V_32I_CM_0_BASEADDR + START_REQUEST;
+    return XPAR_RISCV_MOD_NAME_BASEADDR + START_REQUEST;
 
   case STOP:
-    return XPAR_RISC_V_32I_CM_0_BASEADDR + STOP_REQUEST;
+    return XPAR_RISCV_MOD_NAME_BASEADDR + STOP_REQUEST;
 
   default:
-    return XPAR_RISC_V_32I_CM_0_BASEADDR +
+    return XPAR_RISCV_MOD_NAME_BASEADDR +
            STOP_REQUEST; // in case of an unrecognized type stall the core
   }
 }
