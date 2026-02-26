@@ -1,3 +1,14 @@
+"""
+This is the main script used to both prepare the hardware implementation as well as
+run selected simulation for a given RISC-V Core.
+It is intended to be used within uv virtual environment either as an interactive CLI:
+$ uv run python build.py
+or (just an example)
+$ uv run python build.py --runtime hardware --vendor xilinx --board "Zybo Z7-20" \
+                         --core rv32i --hdl verilog    
+
+REMARKS: it currently supports only Xilinx hardware.
+"""
 import json
 import click
 import logging
