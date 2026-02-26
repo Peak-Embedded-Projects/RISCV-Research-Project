@@ -12,6 +12,8 @@ from pathlib import Path
 BUILD_CACHE_DIR = Path(".build_cache")
 IP_REPO_DIR = Path("build/ip_repos")
 BUILD_SCRIPTS = Path("scripts")
+C_SRC = Path("src")
+INC_FILES = Path("include")
 LOGS_DIR = Path("logs")
 BUILD_DIR = Path("build")
 
@@ -242,7 +244,6 @@ class fpga_design(generic_design):
     """
 
     def __init__(self, config: dict, dependencies: List[ip_core]) -> None:
-        # self.proj_dir = BUILD_SCRIPTS / config["PROJECT_NAME"]
         self.proj_dir = BUILD_SCRIPTS
         super().__init__(name=config["PROJECT_NAME"], version="1.0")
         self.xsa = config["XSA"]
@@ -258,9 +259,7 @@ class fpga_design(generic_design):
         """
 
         files = []
-        files.extend(
-            self.proj_dir.glob("*.tcl")
-        )  # TODO: where to keep TCL for the block diagram?
+        files.extend(self.proj_dir.glob("*.tcl"))
         return files
 
     def _add_extra_hash_content(self, hasher):
@@ -308,10 +307,98 @@ class fpga_design(generic_design):
 
     def _check_build_artifacts_exist(self) -> bool:
         """
-        No need to check for anything. Defaults to True
+        Check for the build directory
         """
 
-        return True
+        expected_path = BUILD_DIR / f"build_riscv_worker_pl_{self.dependencies[0].name}"
+
+        return expected_path.exists()
+
+
+class soc_design(generic_design):
+    """
+    Class implementing Vitis project
+    """
+
+    def __init__(self, config: dict, pl_layer: fpga_design) -> None:
+        self.proj_dir = Path.cwd()
+        self.config = config
+        self.c_src = C_SRC
+        self.header_files = INC_FILES
+        self.pl_layer = pl_layer
+        super().__init__(name=config["PLATFORM"], version="1.0")
+
+    @property
+    def source_dir(self) -> Path:
+        return self.proj_dir
+
+    def _get_sources_for_hashing(self) -> List[Path]:
+        """
+        Get *.c and *.h files for hashing SOC related components
+        """
+
+        files = []
+        files.extend(self.c_src.glob("*.c"))
+        files.extend(self.header_files.glob("*.h"))
+        return files
+
+    def _add_extra_hash_content(self, hasher):
+        """
+        Mix *.c and *.h hash with the hash of block diagram,
+        if that has been changed then *.xsa has changed and everything needs
+        to be rebuilt
+        """
+
+        pl_hash = self.pl_layer._compute_hash()
+        hasher.update(pl_hash.encode("utf-8"))
+
+    def _run_build_tool(self, h: "hardware", log_file, jou_file) -> None:
+        """
+        Run Python script with Vitis runtime
+        """
+
+        python_vitis_script = BUILD_SCRIPTS / "build_riscv_worker_ps_pl.py"
+
+        workspace = BUILD_DIR / self.config["WORKSPACE"]
+        xsa_path = (
+            BUILD_DIR
+            / f"build_riscv_worker_pl_{self.pl_layer.dependencies[0].name}/{self.pl_layer.xsa}"
+        )
+        code_dir = self.proj_dir / "platforms/xilinx/"
+        cmd = [
+            "vitis",
+            "-s",
+            python_vitis_script,
+            "--workspace",
+            str(workspace),
+            "--platform",
+            self.config["PLATFORM"],
+            "--hw_design",
+            str(xsa_path),
+            "--cpu",
+            h.cpu,
+            "--application",
+            self.config["APPLICATION"],
+            "--code",
+            str(code_dir),
+            "--verbose",
+            "1",
+        ]
+
+        logging.info(f"Running Vitis Project creator...")
+
+        # Vitis needs handling like that in order to save logs to logs/
+        with open(log_file, "w") as f:
+            subprocess.run(cmd, check=True, stdout=f, stderr=subprocess.STDOUT)
+
+    def _check_build_artifacts_exist(self) -> bool:
+        """
+        Check for the build directory
+        """
+
+        expected_path = BUILD_DIR / "RISC_V_worker_PS_layer_platform"
+
+        return expected_path.exists()
 
 
 if __name__ == "__main__":
