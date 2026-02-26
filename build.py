@@ -9,6 +9,7 @@ $ uv run python build.py --runtime hardware --vendor xilinx --board "Zybo Z7-20"
 
 REMARKS: it currently supports only Xilinx hardware.
 """
+
 import json
 import click
 import logging
