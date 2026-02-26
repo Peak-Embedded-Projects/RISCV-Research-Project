@@ -399,19 +399,3 @@ class soc_design(generic_design):
         expected_path = BUILD_DIR / "RISC_V_worker_PS_layer_platform"
 
         return expected_path.exists()
-
-
-if __name__ == "__main__":
-    with open("config.json", "r") as f:
-        config = json.load(f)
-
-    hw_config = config["HARDWARE"]
-    hw = hardware(target=hw_config["TARGET"], board=hw_config["BOARD"])
-
-    core_config = config["CORE"]
-    riscv_ip = ip_core(dir_name="rv32i", config=config["CORE"])
-    riscv_ip.build(hw)
-
-    vivado_config = config["PROJECT"]["VIVADO"]
-    pl_layer = fpga_design(vivado_config, [riscv_ip])
-    pl_layer.build(hw)
