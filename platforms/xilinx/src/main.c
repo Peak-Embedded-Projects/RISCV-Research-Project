@@ -4,28 +4,31 @@
 #include "xil_printf.h"
 #include "xparameters.h"
 #include <stdint.h>
-#include <stdio.h>
-#include <time.h>
+#include <xil_io.h>
 
 #define BRAM_BASE_ADDR XPAR_XBRAM_0_BASEADDR
 #define CORE_CTRL_BASE_ADDR XPAR_RISCV_MOD_NAME_BASEADDR
 
 #define BOOT_ADDR BRAM_BASE_ADDR
+#define DATA_ADDR BRAM_BASE_ADDR + 0x1000
 
 // -----------------------------------------------------------------------------
 // PROGRAM DATA
+// (sample program to test basic functionality of the core)
 // -----------------------------------------------------------------------------
 uint32_t program[] = {
-    0x0AB00293, // 0: addi x5, x0, 171  (x5 = 0xAB)
-    0x0CD00313, // 1: addi x6, x0, 205  (x6 = 0xCD)
-    0x0EF00393, // 2: addi x7, x0, 239  (x7 = 0xEF)
-    0x00500023, // 3: sb x5, 0(x0)      (Mem[0] = 0xAB)
-    0x006000A3, // 4: sb x6, 1(x0)      (Mem[1] = 0xCD)
-    0x005002A3, // 5: sb x5, 5(x0)      (Mem[5] = 0xAB)
-    0x00700423, // 6: sb x7, 8(x0)      (Mem[8] = 0xEF)
-    0x00702623, // 7: sw x7, 12(x0)     (Mem[12] = 0x000000EF)
-    0x0000006F  // 8: j 0               (Loop forever)
+    0x0AB00293, // 0: addi x5, x0, 171   (x5 = 0xAB)
+    0x0CD00313, // 1: addi x6, x0, 205   (x6 = 0xCD)
+    0x0EF00393, // 2: addi x7, x0, 239   (x7 = 0xEF)
+    0x40001537, // 3: li x10, 0x40001000 (Memory out base addr)
+    0x00550023, // 4: sb x5, 0(x10)      (Mem[0] = 0xAB)
+    0x006500A3, // 5: sb x6, 1(x10)      (Mem[1] = 0xCD)
+    0x005502A3, // 6: sb x5, 5(x10)      (Mem[5] = 0xAB)
+    0x00750423, // 7: sb x7, 8(x10)      (Mem[8] = 0xEF)
+    0x00752623, // 8: sw x7, 12(x10)     (Mem[12] = 0x000000EF)
+    0x0000006F  // 9: j 0                (Loop forever)
 };
+
 
 void check_reg(uint8_t reg_idx, uint32_t expected) {
   uint32_t actual = cm_regfile_read(reg_idx);
@@ -39,7 +42,7 @@ void check_reg(uint8_t reg_idx, uint32_t expected) {
 
 void check_mem_byte(uint32_t byte_addr, uint8_t expected) {
   uint32_t word_addr = byte_addr & 0xFFFFFFFC; // Align to 4 bytes
-  uint32_t word_val = cm_bram_read(word_addr);
+  uint32_t word_val = Xil_In32(word_addr);
 
   uint32_t byte_offset = byte_addr & 0x3;
   uint8_t actual = (word_val >> (byte_offset * 8)) & 0xFF;
@@ -53,7 +56,7 @@ void check_mem_byte(uint32_t byte_addr, uint8_t expected) {
 }
 
 void check_mem_word(uint32_t word_addr, uint32_t expected) {
-  uint32_t actual = cm_bram_read(word_addr);
+  uint32_t actual = Xil_In32(word_addr);
   if (actual == expected) {
     xil_printf("[PASS] Mem[0x%02X] = 0x%08X\n", word_addr, actual);
   } else {
@@ -68,16 +71,24 @@ int main() {
   xil_printf("\n--- RISC-V Core Verification Start ---\n");
 
   xil_printf("Reseting Core...\n");
-  xil_printf("Reseting Coregownoooo...\n");
   cm_core_stop();
   cm_pc_set(BOOT_ADDR);
 
   xil_printf("Loading Program to BRAM @ offset 0x%X...\n", BOOT_ADDR);
   for (uint32_t i = 0; i < (sizeof(program) / sizeof(program[0])); i++) {
-    cm_bram_write((i * 4), program[i]);
+    Xil_Out32(BOOT_ADDR + (i * 4), program[i]);
+    usleep(500);
   }
 
-  // cm_core_start();
+  usleep(5000);
+
+  for (uint32_t i = 0; i < (sizeof(program) / sizeof(program[0])); i++) {
+    check_mem_word(BOOT_ADDR + (i * 4), program[i]);
+    usleep(500);
+  }
+
+  // As an alternative to single stepping, just run core in endless mode
+  cm_core_start();
 
   // ------------------------------------------------------------
   // Step 1: addi x5, x0, 171
@@ -135,15 +146,16 @@ int main() {
   // xil_printf("\nStep 8: Execute 'sw x7, 12(x0)'\n");
   // cm_single_step_core();
   // check_mem_word(12, 0x000000EF);
+
   usleep(5000);
   check_reg(5, 171);
   check_reg(6, 205);
   check_reg(7, 239);
-  check_mem_byte(0, 0xAB);
-  check_mem_byte(1, 0xCD);
-  check_mem_byte(5, 0xAB);
-  check_mem_byte(8, 0xEF);
-  check_mem_word(12, 0x000000EF);
+  check_mem_byte(DATA_ADDR + 0, 0xAB);
+  check_mem_byte(DATA_ADDR + 1, 0xCD);
+  check_mem_byte(DATA_ADDR + 5, 0xAB);
+  check_mem_byte(DATA_ADDR + 8, 0xEF);
+  check_mem_word(DATA_ADDR + 12, 0x000000EF);
 
   xil_printf("\n--- Verification Complete ---\n");
 
