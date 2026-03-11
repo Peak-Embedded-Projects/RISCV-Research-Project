@@ -6,14 +6,13 @@ or not.
 """
 
 import hashlib
-import subprocess
 import logging
-from datetime import datetime
+import subprocess
 from abc import ABC, abstractmethod
-from typing import List
 from dataclasses import dataclass
+from datetime import datetime
 from pathlib import Path
-
+from typing import List
 
 BUILD_CACHE_DIR = Path(".build_cache")
 IP_REPO_DIR = Path("build/ip_repos")
@@ -229,7 +228,7 @@ class ip_core(generic_design):
             "-tclargs",
         ] + tcl_args
 
-        logging.info(f"Running IP Packager...")
+        logging.info("Running IP Packager...")
         subprocess.run(cmd, check=True)
 
     def _check_build_artifacts_exist(self) -> bool:
@@ -285,7 +284,7 @@ class fpga_design(generic_design):
         tcl_script = BUILD_SCRIPTS / "build_riscv_worker_pl.tcl"
 
         # for now dependencies list will contain only one entrance (one core) but this is added like that in case we have to extend it
-        ip_vlnv = f'{self.dependencies[0].config["IP_VENDOR"]}:{self.dependencies[0].config["IP_LIBRARY"]}:{self.dependencies[0].name}:{self.dependencies[0].config["IP_VERSION"]}'
+        ip_vlnv = f"{self.dependencies[0].config['IP_VENDOR']}:{self.dependencies[0].config['IP_LIBRARY']}:{self.dependencies[0].name}:{self.dependencies[0].config['IP_VERSION']}"
         tcl_args = [
             self.name,
             h.target,
@@ -308,7 +307,7 @@ class fpga_design(generic_design):
             "-tclargs",
         ] + tcl_args
 
-        logging.info(f"Running IP Packager...")
+        logging.info("Running IP Packager...")
         subprocess.run(cmd, check=True)
 
     def _check_build_artifacts_exist(self) -> bool:

@@ -5,20 +5,20 @@ It is intended to be used within uv virtual environment either as an interactive
 $ uv run python build.py
 or (just an example)
 $ uv run python build.py --runtime hardware --vendor xilinx --board "Zybo Z7-20" \
-                         --core rv32i --hdl verilog    
+                         --core rv32i --hdl verilog
 
 REMARKS: it currently supports only Xilinx hardware.
 """
 
 import json
-import click
 import logging
+from enum import Enum
+from pathlib import Path
 from typing import Optional
-from pathlib import Path, PurePath
-from enum import StrEnum
+
+import click
 
 import platforms.xilinx.riscv_build_utils as rv
-
 
 HARDWARE_CONFIG_FILE = Path("hardware.json")
 CORES_ROOT = Path("cores")
@@ -31,7 +31,7 @@ logging.basicConfig(
 )
 
 
-class runtime_type(StrEnum):
+class runtime_type(Enum):
     HARDWARE = "HARDWARE"
     SIMULATION = "SIMULATION"
 
@@ -50,6 +50,7 @@ def load_vendors_and_boards() -> dict:
             return json.load(f)
         except json.JSONDecodeError as err:
             logging.error(f"Cannot parse {HARDWARE_CONFIG_FILE.name}: {err}")
+            exit(1)
 
 
 def get_riscv_cores() -> dict:
@@ -63,12 +64,13 @@ def get_riscv_cores() -> dict:
 
     return {p.name: p for p in CORES_ROOT.iterdir() if p.is_dir()}
 
+
 # TODO: move xilinx implementation to a separate function, this function should
 #       be imported from platforms/xilinx/ directory
 def runtime_hardware_handler(
     vendor: str, hw: rv.hardware, core: Path, hdl: str
 ) -> None:
-    
+
     ip_name = f"{core.name}_{hdl}"
     xsa_name = ip_name + "_hardware.xsa"
 
@@ -93,28 +95,30 @@ def runtime_hardware_handler(
     riscv_ip = rv.ip_core(core_dir=core, config=core_config)
     riscv_ip.build(hw)
 
-    block_diagram_config = {
-      "PROJECT_NAME" : "RISC_V_worker_PL_layer",
-      "XSA"          : xsa_name
-    }
-    click.secho(f"\n=== Building {block_diagram_config["PROJECT_NAME"]} ===", fg="green", bold=True)
+    block_diagram_config = {"PROJECT_NAME": "RISC_V_worker_PL_layer", "XSA": xsa_name}
+    click.secho(
+        f"\n=== Building {block_diagram_config['PROJECT_NAME']} ===",
+        fg="green",
+        bold=True,
+    )
     pl_layer = rv.fpga_design(config=block_diagram_config, dependencies=[riscv_ip])
     pl_layer.build(hw)
 
     soc_config = {
-      "WORKSPACE"    : "vitis_ws",
-      "PLATFORM"     : "RISC_V_worker_PS_layer_platform",
-      "APPLICATION"  : "RISC_V_worker_PS_application",
+        "WORKSPACE": "vitis_ws",
+        "PLATFORM": "RISC_V_worker_PS_layer_platform",
+        "APPLICATION": "RISC_V_worker_PS_application",
     }
 
-    click.secho(f"\n=== Building {soc_config["PLATFORM"]} ===", fg="green", bold=True)
+    click.secho(f"\n=== Building {soc_config['PLATFORM']} ===", fg="green", bold=True)
     ps_layer = rv.soc_design(config=soc_config, pl_layer=pl_layer)
     ps_layer.build(hw)
+
 
 @click.command()
 @click.option(
     "--runtime",
-    type=click.Choice(["HARDWARE", "SIMULATION"], case_sensitive=False),
+    type=click.Choice([e.value for e in runtime_type], case_sensitive=False),
     help="Target Runtime",
 )
 @click.option("--vendor", type=str, help="FPGA Vendor (HARDWARE only)")
@@ -139,12 +143,12 @@ def launch(
     if not runtime:
         runtime = click.prompt(
             "Select Runtime",
-            type=click.Choice(["HARDWARE", "SIMULATION"], case_sensitive=False),
+            type=click.Choice([e.value for e in runtime_type], case_sensitive=False),
             default="SIMULATION",
         )
     runtime = runtime.upper()
 
-    if runtime == runtime_type.HARDWARE:
+    if runtime == runtime_type.HARDWARE.value:
         data = load_vendors_and_boards()
         available_vendors = list(data.keys())
 
@@ -184,10 +188,12 @@ def launch(
         board = board_match
         board_params = available_boards[board_match]
 
-    elif runtime == runtime_type.SIMULATION:
+    elif runtime == runtime_type.SIMULATION.value:
         pass
     else:
-        logging.error(f"{runtime} not supported")
+        logging.error(
+            f"{runtime} not supported, choose one of {[e.value for e in runtime_type]}"
+        )
         exit(1)
 
     available_cores = get_riscv_cores()
@@ -228,7 +234,7 @@ def launch(
     click.echo(f"Core:    {core}")
     click.echo(f"HDL:    {hdl}")
 
-    if runtime == runtime_type.HARDWARE:
+    if runtime == runtime_type.HARDWARE.value:
         hw = rv.hardware(
             target=board_params["TARGET"],
             board=board_params["BOARD"],
