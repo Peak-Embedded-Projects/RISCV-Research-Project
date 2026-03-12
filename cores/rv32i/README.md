@@ -55,6 +55,8 @@ This project utilizes byte addressable memory layout. It uses very simple custom
 
 #### Writing testbenches
 
+Prerequisite: install the `riscv64-unknown-elf` toolchain before building test programs.
+
 In order to test the core a RISC-V 32-bit assembly program has to be written. The program should be stored in a respective directory for instance: `data/s_type/`.
 
 After creating program it has to be compiled and turned into `.hex` file.
@@ -65,7 +67,7 @@ cd data
 python3 rv322coe.py --file s_type/sb/program.S
 ```
 
-It doesn't require any special environment, only the RISC-V compiler (`riscv64-unknown-elf`).
+It doesn't require any special Python environment, only the RISC-V compiler (`riscv64-unknown-elf`).
 
 In addition to the assembled program (`program.hex`), each folder must contain:
 

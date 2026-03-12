@@ -1,72 +1,105 @@
 # RISCV-Research-Project
-This repository contains a framework for injecting artificial SEU faults into RISC-V core. This work was done as a part of ISAE Supaero Master Aerospace Engineering degree.
 
-## Project's overview
-RISC-V is an open-source Instruction Set Architecture. Due to its non-proprietary nature its adaptation to space industry offers great costs cut related to the lack of any licensing. 
+This repository contains a framework for injecting artificial SEU faults into a RISC-V core. This work was done as part of the ISAE Supaero Master Aerospace Engineering degree.
 
-Central Processing Units that operate in the space environment are subjected to different kinds of radiation. A very common case is the exposition to an ionizing radiation which interacts with electrical components of satellites on Earth's orbit. A physical phenomena known as [Single Event Upset (SEU)](https://en.wikipedia.org/wiki/Single-event_upset) can result in a bit flip within CPU's memory, register file causing incorrect execution of a running software. Reprecussions of such an accident can be fatal to the mission.
+## Project Overview
+
+RISC-V is an open-source instruction set architecture (ISA). Due to its non-proprietary nature, its adaptation to the space industry can reduce costs related to licensing.
+
+Central processing units that operate in the space environment are subjected to different kinds of radiation. A common case is exposure to ionizing radiation, which interacts with electrical components of satellites in Earth orbit. A phenomenon known as [Single Event Upset (SEU)](https://en.wikipedia.org/wiki/Single-event_upset) can result in a bit flip in CPU memory or a register file, causing incorrect software execution.
 
 This project focuses on two goals:
 
-1. Adapting RISC-V architecture to the space environment with respect to SEU: applying hardware mitigation techniques.
-2. Establishing a generic test framework within Zybo line of ARM/FPGA SoC platforms, which injects simulate SEU faults and analyzes outputs to evaluate mitigated core performance. The framework should allow for a verification of different cores as long as they can synthesize on the supported platform with minial changes (mostly ports expositions).
+1. Adapting RISC-V architecture to the space environment with SEU mitigation techniques.
+2. Establishing a generic test framework on SoC platforms that injects simulated SEU faults and analyzes outputs to evaluate mitigated core performance. The framework should support verification of different cores, as long as they can synthesize on the supported platform with minimal changes (mostly exposing ports).
 
 ### Architecture
-The proposed architecture uses [Digilent Zybo Z7-20](https://digilent.com/shop/zybo-z7-zynq-7000-arm-fpga-soc-development-board/) development boards and a master computer (later called as Master PC).
 
-#### High Level Architecture
-The idea is to have two workers (Zybo boards) one implements mitigated core, another one unmitigated. Both workers communicate with the Master PC (on the diagram below Fault Injection Orchestrator) which sends to them what kind of instruction to execute and what kind of fault to inject.
+The proposed architecture uses [Digilent Zybo Z7-20](https://digilent.com/shop/zybo-z7-zynq-7000-arm-fpga-soc-development-board/) boards and a master computer (Master PC).
+
+#### High-level architecture
+
+The idea is to use two workers (Zybo boards): one with a mitigated core and one without mitigation. Both workers communicate with the Master PC (labeled as the Fault Injection Orchestrator in the diagram below), which sends instruction workloads and fault injection commands.
 
 ![High Level Architecture](docs/high_level_arch.drawio.png)
 
-The outputs from cores are collected and compared against each other to establish, if mitigation worked and what was the time performance of the mitgated CPU.
+The outputs from the cores are collected and compared to determine whether mitigation worked and what the time-performance impact of the mitigated CPU is.
 
-#### Detailed Single Worker Architecture
-The detailed aritecture of a single worker is depicted below. Master PC sends commands through UART, which is received by built-in Zybo ARM Cortex CPU. ARM Cortex implements AXI Master which interprets requests from Master PC and does the following:
+#### Detailed Single-Worker Architecture
+
+The detailed architecture of a single worker is shown below. The Master PC sends commands over UART, which are received by the built-in Zybo ARM Cortex CPU. The ARM Cortex acts as an AXI Master, interprets requests from the Master PC, and performs the following steps:
 
 1. Inform the Control Module to stop the processor.
-2. Modify instruction memory of the core with a new instruction and according to the fault vector part related to the memory.
-3. Inform Control Module of the values to write to the register file. This module communicates with Fault Injection Module (FIM) about the fault to inject- into register file. Once FIM prepares the data, then Control Module updates the register file.
-4. Once register file is updated the ```unstall signal``` is issued and the core executes instruction(s). In the meantime a timer is launched to measure how long it takes to complete the instruction.
-5. When the processor finishes it is being stalled once again via ```Zynq PC -> Control Module```. After stall the data is collected: memory, register file, program counter.
-6. Collected data is send back to the Master PC.
+2. Modify the core instruction memory with a new instruction according to the fault-vector segment related to memory.
+3. Inform the Control Module about values to write to the register file. The Control Module communicates with the Fault Injection Module (FIM) about faults to inject into the register file. Once FIM prepares the data, the Control Module updates the register file.
+4. Once the register file is updated, the `unstall signal` is issued and the core executes instruction(s). In parallel, a timer is started to measure how long instruction execution takes.
+5. When the processor finishes, it is stalled again via `Zynq PC -> Control Module`. After the stall, data is collected: memory, register file, and program counter.
+6. Collected data is sent back to the Master PC.
 
-Entire communication between Programmable Logic (PL) and Processing System (PS)- ARM, is done through [AMBA AXI](https://www.amd.com/en/products/adaptive-socs-and-fpgas/intellectual-property/axi.html) protocol.
+All communication between Programmable Logic (PL) and the Processing System (PS, ARM) uses the [AMBA AXI](https://www.amd.com/en/products/adaptive-socs-and-fpgas/intellectual-property/axi.html) protocol.
 
 ![Single Worker Architecture](docs/single_worker_high_level_arch.drawio.png)
 
-Component labeled as RISC-V soft-core is meant to be any core that can synthesize on the supported hardware like Zybo Z7-20. The principal advantage of this approach is that this architecture can mimick debugger workflow without having to implement full debug mode within the core (greately simplyfying it) and inject SEU into the processor.
+The component labeled as the RISC-V soft core can be any core that synthesizes on supported hardware such as the Zybo Z7-20. The main advantage of this approach is that it can mimic a debugger-like workflow without implementing full debug mode in the core (greatly simplifying integration) while still allowing SEU injection.
 
 ## Development
-The project's tree in the simplified form form looks as follows:
-```
+
+### Folder Structure
+
+The project tree in simplified form:
+
+```text
 ├── cores
 ├── docs
 ├── masterpc
 └── platforms
 ```
 
-* ```cores```: contains HDL implementations of soft-cores to verify + any build system they use
-* ```masterpc```: Master PC application
-* ```platforms```: contains platform related builds and elements of build system
+- `cores/`: HDL RISC-V Core implementations and their local tests. \
+  Currently this contains a single RV32I core. See [its README](cores/rv32i/README.md) for supported instructions and simulation/testbench workflow.
+- `platforms/`: Implementation of the target platforms that the cores can be deployed to. \
+  Includes build scripts and integration code.
+  See [its README](platforms/README.md) for more details on supported targets and platform-specific information.
+- `masterpc/`: The application running on the host computer to control the target.
+  ([masterpc/README.md](masterpc/README.md))
 
-### Building and Simulating
-In the root directory `build.py` script controls building the hardware and running simulations with an interactive CLI or via terminal arguments.
+### Requirements
 
-#### Building hardware
-Run either:
+Different parts of the project have different requirements.
+
+In general, Python 3 (tested with >=3.11) is required, along with the dependencies specified in `pyproject.toml`. We recommend [uv](https://docs.astral.sh/uv/) to manage the Python virtual environment and dependency installation. Manual installation via pip or any other Python package manager is also possible.
+
+To be able to compile new RISC-V test programs, the `riscv64-unknown-elf` toolchain is needed.
+To avoid having a hard dependency on the toolchain, we also store the compiled programs in this repository.
+
+For platform-specific requirements, see [the platforms README](platforms/README.md).
+
+
+### Building and Running
+
+In the repository root, `build.py` controls hardware build flow (interactive CLI or arguments).
+
+Run interactive mode:
+
 ```bash
 uv run python build.py
 ```
-or (just an example)
+
+Run non-interactive mode (example):
+
 ```bash
 uv run python build.py --runtime hardware --vendor xilinx --board "Zybo Z7-20" --core rv32i --hdl verilog
 ```
 
-Make sure that the target hardware is listed inside `hardware.json` as well as the backend building scripts etc... are there.
+The hardware flow currently supports Xilinx and produces Vivado/Vitis build artifacts under `platforms/xilinx/build/`.
 
-So far the workflow supports only Xilinx products.
+For Xilinx boards, after `build.py` completes, Vitis must be launched manually to upload the program to the board.
 
-#### Simulation
-TODO
+```bash
+vitis -w platforms/xilinx/build/vitis_ws
+```
+
+### Simulation
+
+Simulation is core-specific for now. See [cores/rv32i/README.md](cores/rv32i/README.md) for current simulation and test program instructions.
 
