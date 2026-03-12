@@ -38,7 +38,8 @@ module riscv_cpu (
     input  [`REG_ADDR_WIDTH-1:0] cm_regfile_addr,
     output [    `DATA_WIDTH-1:0] cm_regfile_read_data,
     input                        cm_regfile_we,
-    input  [    `DATA_WIDTH-1:0] cm_regfile_write_data
+    input  [    `DATA_WIDTH-1:0] cm_regfile_write_data,
+    output [    `DATA_WIDTH-1:0] cm_debug_vector
 );
 
     // we have the following transactions, each one has ready and valid signals
@@ -124,6 +125,13 @@ module riscv_cpu (
         end
     end
     assign cm_pc_read_data = pc;
+
+    assign cm_debug_vector = {
+        3'b0, next_pc_valid, 3'b0, next_pc_ready,
+        3'b0, pc_valid, 3'b0, pc_ready,
+        3'b0, pc_release_pending, next_pc[3:0],
+        pc[7:0]
+    };
 
     reg [`DATA_WIDTH-1:0] instruction_latched;
     assign instruction_ready = 1'b1;  // always ready

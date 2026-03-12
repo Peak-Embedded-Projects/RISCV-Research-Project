@@ -40,6 +40,23 @@ void check_reg(uint8_t reg_idx, uint32_t expected) {
   }
 }
 
+void check_pc(uint32_t expected) {
+  uint32_t start_counter = cm_start_counter_read();
+  uint32_t step_counter = cm_step_counter_read();
+  uint32_t dbg_vector = cm_debug_vector_read();
+  xil_printf("start_counter = 0x%08X\n", start_counter);
+  xil_printf("step_counter = 0x%08X\n", step_counter);
+  xil_printf("dbg_vector = 0x%08X\n", dbg_vector);
+
+  uint32_t actual = cm_pc_read();
+  if (actual == expected) {
+    xil_printf("[PASS] PC = 0x%08X\n", actual);
+  } else {
+    xil_printf("[FAIL] PC. Exp: 0x%08X, Got: 0x%08X\n", expected,
+               actual);
+  }
+}
+
 void check_mem_byte(uint32_t byte_addr, uint8_t expected) {
   uint32_t word_addr = byte_addr & 0xFFFFFFFC; // Align to 4 bytes
   uint32_t word_val = Xil_In32(word_addr);
@@ -87,63 +104,69 @@ int main() {
     usleep(500);
   }
 
+
+  check_pc(BOOT_ADDR + 0 * 4);
+
   // As an alternative to single stepping, just run core in endless mode
-  cm_core_start();
+  // cm_core_start();
 
   // ------------------------------------------------------------
-  // Step 1: addi x5, x0, 171
+  // addi x5, x0, 171
   // ------------------------------------------------------------
-  // xil_printf("\nStep 1: Execute 'addi x5, x0, 171'\n");
-  // cm_single_step_core();
-  // check_reg(5, 171); // Expect 0xAB
+  xil_printf("\nSingle Step: Execute 'addi x5, x0, 171'\n");
+  cm_single_step_core();
+  check_pc(BOOT_ADDR + 1 * 4);
+  check_reg(5, 171); // Expect 0xAB
 
   // ------------------------------------------------------------
-  // Step 2: addi x6, x0, 205
+  // addi x6, x0, 205
   // ------------------------------------------------------------
-  // xil_printf("\nStep 2: Execute 'addi x6, x0, 205'\n");
-  // cm_single_step_core();
-  // check_reg(6, 205); // Expect 0xCD
+  xil_printf("\nSingle Step: Execute 'addi x6, x0, 205'\n");
+  cm_single_step_core();
+  check_pc(BOOT_ADDR + 2 * 4);
+  check_reg(6, 205); // Expect 0xCD
 
   // ------------------------------------------------------------
-  // Step 3: addi x7, x0, 239
+  // addi x7, x0, 239
   // ------------------------------------------------------------
-  // xil_printf("\nStep 3: Execute 'addi x7, x0, 239'\n");
-  // cm_single_step_core();
-  // check_reg(7, 239); // Expect 0xEF
+  xil_printf("\nSingle Step: Execute 'addi x7, x0, 239'\n");
+  cm_single_step_core();
+  check_pc(BOOT_ADDR + 3 * 4);
+  check_reg(7, 239); // Expect 0xEF
 
   // ------------------------------------------------------------
-  // Step 4: sb x5, 0(x0)  -> Write 0xAB to Addr 0
+  // sb x5, 0(x0)  -> Write 0xAB to Addr 0
   // ------------------------------------------------------------
-  // xil_printf("\nStep 4: Execute 'sb x5, 0(x0)'\n");
+  // xil_printf("\nSingle Step: Execute 'sb x5, 0(x0)'\n");
   // cm_single_step_core();
   // check_mem_byte(0, 0xAB);
 
   // ------------------------------------------------------------
-  // Step 5: sb x6, 1(x0)  -> Write 0xCD to Addr 1
+  // sb x6, 1(x0)  -> Write 0xCD to Addr 1
   // ------------------------------------------------------------
-  // xil_printf("\nStep 5: Execute 'sb x6, 1(x0)'\n");
+  // xil_printf("\nSingle Step: Execute 'sb x6, 1(x0)'\n");
   // cm_single_step_core();
   // check_mem_byte(1, 0xCD);
 
   // ------------------------------------------------------------
-  // Step 6: sb x5, 5(x0)  -> Write 0xAB to Addr 5
+  // sb x5, 5(x0)  -> Write 0xAB to Addr 5
   // Addr 5 is the 2nd byte of the word at Addr 4
   // ------------------------------------------------------------
-  // xil_printf("\nStep 6: Execute 'sb x5, 5(x0)'\n");
+  // xil_printf("\nSingle Step: Execute 'sb x5, 5(x0)'\n");
   // cm_single_step_core();
   // check_mem_byte(5, 0xAB);
 
   // ------------------------------------------------------------
-  // Step 7: sb x7, 8(x0)  -> Write 0xEF to Addr 8
+  // sb x7, 8(x0)  -> Write 0xEF to Addr 8
   // ------------------------------------------------------------
-  // xil_printf("\nStep 7: Execute 'sb x7, 8(x0)'\n");
+  // xil_printf("\nSingle Step: Execute 'sb x7, 8(x0)'\n");
   // cm_single_step_core();
   // check_mem_byte(8, 0xEF);
 
   // ------------------------------------------------------------
-  // Step 8: sw x7, 12(x0) -> Write 0x000000EF to Addr 12
+  // sw x7, 12(x0) -> Write 0x000000EF to Addr 12
   // ------------------------------------------------------------
-  // xil_printf("\nStep 8: Execute 'sw x7, 12(x0)'\n");
+  // xil_printf("\nSingle Step: Execute 'sw x7, 12(x0)'\n");
   // cm_single_step_core();
   // check_mem_word(12, 0x000000EF);
 

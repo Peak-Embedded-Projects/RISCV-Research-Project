@@ -54,7 +54,7 @@ module soc_control (
     input CLK,
     input RSTn,
 
-    // connections to RISC-V register file
+    // connections to RISC-V core
     output reg                       pc_stall,
     input      [    `DATA_WIDTH-1:0] pc_read_data,
     output reg                       pc_write_enable,
@@ -63,6 +63,7 @@ module soc_control (
     input      [    `DATA_WIDTH-1:0] regfile_read_data,
     output reg                       regfile_write_enable,
     output reg [    `DATA_WIDTH-1:0] regfile_write_data,
+    input      [    `DATA_WIDTH-1:0] core_debug_vector,
 
     // AXI4-lite connections
     // AXI write address
@@ -257,11 +258,16 @@ module soc_control (
     reg  control_address_valid;
     wire control_read_valid = control_selected && control_address_valid && sub_addr_aligned;
     wire control_write_valid = control_read_valid && write_strobe_full;
+    // Dummy for testing
+    reg [31:0] start_counter;
+    reg [31:0] step_counter;
     always @(posedge CLK or negedge RSTn) begin
         if (!RSTn) begin
             pc_stall <= 1'b1;
             control_read_data <= `DATA_WIDTH'b0;
             control_address_valid <= 1'b0;
+            start_counter <= 32'b0;
+            step_counter <= 32'b0;
         end else begin
             case (state)
                 `STATE_IDLE: begin
@@ -283,6 +289,18 @@ module soc_control (
                                 control_address_valid <= 1'b1;
                                 control_read_data <= pc_read_data;
                             end
+                            `CTRL_REG_START_COUNTER: begin
+                                control_address_valid <= 1'b1;
+                                control_read_data <= start_counter;
+                            end
+                            `CTRL_REG_STEP_COUNTER: begin
+                                control_address_valid <= 1'b1;
+                                control_read_data <= step_counter;
+                            end
+                            `CTRL_REG_DBG_VECTOR: begin
+                                control_address_valid <= 1'b1;
+                                control_read_data <= core_debug_vector;
+                            end
                             default: begin
                                 control_read_data <= `DATA_WIDTH'b0;
                             end
@@ -294,6 +312,7 @@ module soc_control (
                             `CTRL_REG_START: begin
                                 control_address_valid <= 1'b1;
                                 pc_stall <= 1'b0;
+                                start_counter <= start_counter + 1;
                             end
                             `CTRL_REG_STOP: begin
                                 control_address_valid <= 1'b1;
@@ -302,19 +321,21 @@ module soc_control (
                             `CTRL_REG_STEP: begin
                                 control_address_valid <= 1'b1;
                                 pc_stall <= 1'b0;
+                                step_counter <= step_counter + 1;
                             end
                             `CTRL_REG_PC: control_address_valid <= 1'b1;
                         endcase
                 end
                 `STATE_WRITE_WAIT_DONE: begin
-                    case (sub_addr)
-                        `CTRL_REG_STEP: pc_stall <= 1'b1;
-                    endcase
+                    if (control_selected)
+                        case (sub_addr)
+                            `CTRL_REG_STEP: pc_stall <= 1'b1;
+                        endcase
                 end
             endcase
         end
     end
-    // PC write issue as async block (forwarding)
+    // PC write issue as async block (simply forwarding)
     always @(*) begin
         pc_write_enable = 1'b0;
         pc_write_data   = `DATA_WIDTH'b0;

@@ -33,5 +33,8 @@ Layout (h are the high bits, assummed to be used by the interconnect):
 `define CTRL_REG_STOP `SUB_ADDR_WIDTH'h08
 `define CTRL_REG_STEP `SUB_ADDR_WIDTH'h0C
 `define CTRL_REG_PC `SUB_ADDR_WIDTH'h10
+`define CTRL_REG_START_COUNTER `SUB_ADDR_WIDTH'h14
+`define CTRL_REG_STEP_COUNTER `SUB_ADDR_WIDTH'h18
+`define CTRL_REG_DBG_VECTOR `SUB_ADDR_WIDTH'h1C
 
 `endif

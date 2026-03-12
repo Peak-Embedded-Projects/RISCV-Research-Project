@@ -59,3 +59,18 @@ void cm_core_stop() {
   uint32_t stop_trigger_val = 0x01;
   Xil_Out32(address, stop_trigger_val);
 }
+
+uint32_t cm_start_counter_read(){
+  uint32_t address = XPAR_RISCV_MOD_NAME_BASEADDR + (SUB_SEL_CTRL << 8) + CTRL_REG_START_COUNTER;
+  return Xil_In32(address);
+}
+
+uint32_t cm_step_counter_read(){
+  uint32_t address = XPAR_RISCV_MOD_NAME_BASEADDR + (SUB_SEL_CTRL << 8) + CTRL_REG_STEP_COUNTER;
+  return Xil_In32(address);
+}
+
+uint32_t cm_debug_vector_read(){
+  uint32_t address = XPAR_RISCV_MOD_NAME_BASEADDR + (SUB_SEL_CTRL << 8) + CTRL_REG_DBG_VECTOR;
+  return Xil_In32(address);
+}
