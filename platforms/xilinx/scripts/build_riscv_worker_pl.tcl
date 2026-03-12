@@ -18,15 +18,20 @@
 # vivado -mode gui -source RISC_V_worker_PL_layerl.tcl 
 # This will open the block diagram in GUI mode, then you can fix it, export it to TCL and manually fix section
 # 2 of this script to match what Vivado has generated.
+# REMARKS: the usage described above is DEPRECATED. Currently the build.py script from project's root directory
+#          launches this script, therefore running it from here will result in errors due to paths taylored
+#          to build.py runtime.
 # =============================================================================================================
 
 # ================== 1. Configuration ==================
 set project_name    [lindex $argv 0]
-set output_dir      "build_riscv_worker_pl"
-set ip_repo_dir     "ip_repos"
+set ip_repo_dir     "platforms/xilinx/build/ip_repos"
 set target_part     [lindex $argv 1]
 set board_part      [lindex $argv 2]
 set xsa_name        [lindex $argv 3]
+set vlnv_riscv      [lindex $argv 4]
+set riscv_mod_name  [lindex $argv 5]
+set output_dir      "platforms/xilinx/build/build_riscv_worker_pl_${riscv_mod_name}"
 # How many threads should perform synthesis and implementation tasks
 set threads_num     2
 
@@ -405,8 +410,8 @@ set_property -dict [list \
 set rst_ps7_0_50M [ create_bd_cell -type ip -vlnv xilinx.com:ip:proc_sys_reset:5.0 rst_ps7_0_50M ]
 
 # Create instance: RISC-V IP Core
-# !!! Make sure that the VLNV (Vendor:Library:Name:Version) matches exactly what was packaged !!!
-set risc_v_32i_cm_0 [ create_bd_cell -type ip -vlnv ISAE:user:risc_v_32i_cm:1.0 risc_v_32i_cm_0 ]
+# !!! Make sure that the VLNV (Vendor:Library:Name:Version) matches exactly what was packaged !!! pre: ISAE:user:risc_v_32i_cm:1.0 | riscv_mod_name riscv_mod_name
+set riscv_mod_name [ create_bd_cell -type ip -vlnv $vlnv_riscv riscv_mod_name ] 
 
 # Create instance: axi_interconnect_0, and set properties
 set axi_interconnect_0 [ create_bd_cell -type ip -vlnv xilinx.com:ip:axi_interconnect:2.1 axi_interconnect_0 ]
@@ -431,18 +436,18 @@ set_property CONFIG.TRANSLATION_MODE {2} $axi_protocol_convert_1
   connect_bd_intf_net -intf_net axi_interconnect_0_M00_AXI [get_bd_intf_pins axi_protocol_convert_0/S_AXI] [get_bd_intf_pins axi_interconnect_0/M00_AXI]
   connect_bd_intf_net -intf_net axi_interconnect_0_M01_AXI [get_bd_intf_pins axi_interconnect_0/M01_AXI] [get_bd_intf_pins axi_interconnect_1/S00_AXI]
   connect_bd_intf_net -intf_net axi_interconnect_1_M00_AXI [get_bd_intf_pins axi_interconnect_1/M00_AXI] [get_bd_intf_pins axi_bram_ctrl_0/S_AXI]
-  connect_bd_intf_net -intf_net axi_protocol_convert_0_M_AXI [get_bd_intf_pins axi_protocol_convert_0/M_AXI] [get_bd_intf_pins risc_v_32i_cm_0/S_AXI]
+  connect_bd_intf_net -intf_net axi_protocol_convert_0_M_AXI [get_bd_intf_pins axi_protocol_convert_0/M_AXI] [get_bd_intf_pins riscv_mod_name/S_AXI]
   connect_bd_intf_net -intf_net axi_protocol_convert_1_M_AXI [get_bd_intf_pins axi_protocol_convert_1/M_AXI] [get_bd_intf_pins axi_interconnect_1/S01_AXI]
   connect_bd_intf_net -intf_net processing_system7_0_DDR [get_bd_intf_ports DDR] [get_bd_intf_pins processing_system7_0/DDR]
   connect_bd_intf_net -intf_net processing_system7_0_FIXED_IO [get_bd_intf_ports FIXED_IO] [get_bd_intf_pins processing_system7_0/FIXED_IO]
-  connect_bd_intf_net -intf_net risc_v_32i_cm_0_M_AXI [get_bd_intf_pins risc_v_32i_cm_0/M_AXI] [get_bd_intf_pins axi_protocol_convert_1/S_AXI]
+  connect_bd_intf_net -intf_net riscv_mod_name_M_AXI [get_bd_intf_pins riscv_mod_name/M_AXI] [get_bd_intf_pins axi_protocol_convert_1/S_AXI]
 
   # Create port connections
   connect_bd_net -net processing_system7_0_FCLK_CLK0  [get_bd_pins processing_system7_0/FCLK_CLK0] \
   [get_bd_pins processing_system7_0/M_AXI_GP0_ACLK] \
   [get_bd_pins axi_bram_ctrl_0/s_axi_aclk] \
   [get_bd_pins rst_ps7_0_50M/slowest_sync_clk] \
-  [get_bd_pins risc_v_32i_cm_0/CLK] \
+  [get_bd_pins riscv_mod_name/CLK] \
   [get_bd_pins axi_interconnect_0/ACLK] \
   [get_bd_pins axi_interconnect_0/M00_ACLK] \
   [get_bd_pins axi_protocol_convert_0/aclk] \
@@ -457,7 +462,7 @@ set_property CONFIG.TRANSLATION_MODE {2} $axi_protocol_convert_1
   [get_bd_pins rst_ps7_0_50M/ext_reset_in]
   connect_bd_net -net rst_ps7_0_50M_peripheral_aresetn  [get_bd_pins rst_ps7_0_50M/peripheral_aresetn] \
   [get_bd_pins axi_bram_ctrl_0/s_axi_aresetn] \
-  [get_bd_pins risc_v_32i_cm_0/RSTn] \
+  [get_bd_pins riscv_mod_name/RSTn] \
   [get_bd_pins axi_interconnect_0/ARESETN] \
   [get_bd_pins axi_interconnect_0/M00_ARESETN] \
   [get_bd_pins axi_protocol_convert_0/aresetn] \
@@ -471,8 +476,8 @@ set_property CONFIG.TRANSLATION_MODE {2} $axi_protocol_convert_1
 
   # Create address segments
   assign_bd_address -offset 0x40000000 -range 0x00002000 -target_address_space [get_bd_addr_spaces processing_system7_0/Data] [get_bd_addr_segs axi_bram_ctrl_0/S_AXI/Mem0] -force
-  assign_bd_address -offset 0x60000000 -range 0x00010000 -target_address_space [get_bd_addr_spaces processing_system7_0/Data] [get_bd_addr_segs risc_v_32i_cm_0/S_AXI/reg0] -force
-  assign_bd_address -offset 0x40000000 -range 0x00002000 -target_address_space [get_bd_addr_spaces risc_v_32i_cm_0/M_AXI] [get_bd_addr_segs axi_bram_ctrl_0/S_AXI/Mem0] -force
+  assign_bd_address -offset 0x60000000 -range 0x00010000 -target_address_space [get_bd_addr_spaces processing_system7_0/Data] [get_bd_addr_segs riscv_mod_name/S_AXI/reg0] -force
+  assign_bd_address -offset 0x40000000 -range 0x00002000 -target_address_space [get_bd_addr_spaces riscv_mod_name/M_AXI] [get_bd_addr_segs axi_bram_ctrl_0/S_AXI/Mem0] -force
 
 # ================== 3. Execution ==================
 # Save and Validate
@@ -516,10 +521,10 @@ puts "--- Exporting Hardware to $xsa_name ---"
 
 # -fixed: Include the bitstream
 # -force: Overwrite if exists
-write_hw_platform -fixed -include_bit -force -file $xsa_name
+write_hw_platform -fixed -include_bit -force -file "$output_dir/$xsa_name"
 
 puts "========================================================"
 puts " BUILD COMPLETE "
 puts " Bitstream location: [get_property DIRECTORY [get_runs impl_1]]/RISC_V_worker_PL_wrapper.bit"
-puts " XSA location:       [pwd]/../$xsa_name"
+puts " XSA location:       [pwd]/$output_dir/$xsa_name"
 puts "========================================================"

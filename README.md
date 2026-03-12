@@ -43,9 +43,30 @@ The project's tree in the simplified form form looks as follows:
 ├── cores
 ├── docs
 ├── masterpc
-└── soc
+└── platforms
 ```
 
 * ```cores```: contains HDL implementations of soft-cores to verify + any build system they use
 * ```masterpc```: Master PC application
-* ```soc```: ARM Cortex application + full implementation including the selected core
+* ```platforms```: contains platform related builds and elements of build system
+
+### Building and Simulating
+In the root directory `build.py` script controls building the hardware and running simulations with an interactive CLI or via terminal arguments.
+
+#### Building hardware
+Run either:
+```bash
+uv run python build.py
+```
+or (just an example)
+```bash
+uv run python build.py --runtime hardware --vendor xilinx --board "Zybo Z7-20" --core rv32i --hdl verilog
+```
+
+Make sure that the target hardware is listed inside `hardware.json` as well as the backend building scripts etc... are there.
+
+So far the workflow supports only Xilinx products.
+
+#### Simulation
+TODO
+

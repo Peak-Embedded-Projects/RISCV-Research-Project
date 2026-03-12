@@ -3,24 +3,6 @@
 
 #include <stdint.h>
 
-enum component_type {
-  REGFILE = 0,
-  PC = 1,
-  BRAM = 2,
-  STEP = 3,
-  START = 4,
-  STOP = 5
-};
-
-/**
- * @brief Create an address used by xil_io
- *
- * @param comp type of component to handle
- * @param request address of a specific request
- * @return uint32_t address
- */
-uint32_t cm_create_address(enum component_type comp, uint16_t request);
-
 /**
  * @brief Write to the register file
  *
@@ -68,21 +50,5 @@ void cm_core_start();
  *
  */
 void cm_core_stop();
-
-/**
- * @brief Write to the specific address of BRAM
- *
- * @param addr address where to wrtie
- * @param data data to write
- */
-void cm_bram_write(uint32_t addr, uint32_t data);
-
-/**
- * @brief Read a specific address of BRAM
- *
- * @param addr address to read from
- * @return uint32_t read value
- */
-uint32_t cm_bram_read(uint32_t addr);
 
 #endif
