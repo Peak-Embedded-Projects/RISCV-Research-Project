@@ -105,22 +105,33 @@ module riscv_cpu (
     // do not accept the next pc if the current pc has not
     // yet been transferred to the fetch unit.
     reg                          pc_release_pending;
+    // Latches that the stall was released for the current PC so that pc_valid
+    // stays asserted until pc_ready arrives, even if cm_pc_stall returns high
+    // in the meantime (e.g. single-step mode where stall is low for one cycle).
+    reg                          pc_stall_released;
     assign next_pc_ready = !pc_release_pending;
-    assign pc_valid = pc_release_pending && !cm_pc_stall;
+    assign pc_valid = pc_release_pending && (!cm_pc_stall || pc_stall_released);
     always @(posedge CLK or negedge RSTn) begin
         if (!RSTn) begin
             pc <= `BOOT_ADDR;
             pc_release_pending <= 1'b1;
+            pc_stall_released  <= 1'b0;
         end else begin
             if (next_pc_valid && next_pc_ready) begin
                 // NEXT_PC transaction
                 pc <= next_pc;
                 pc_release_pending <= 1'b1;
+                pc_stall_released  <= 1'b0;
             end else if (pc_valid && pc_ready) begin
                 // PC transaction
                 pc_release_pending <= 1'b0;
-            end else if (cm_pc_stall && cm_pc_we) begin
-                pc <= cm_pc_write_data;
+                pc_stall_released  <= 1'b0;
+            end else begin
+                // Latch stall release so pc_valid stays high until pc_ready arrives
+                if (pc_release_pending && !cm_pc_stall)
+                    pc_stall_released <= 1'b1;
+                if (cm_pc_stall && cm_pc_we)
+                    pc <= cm_pc_write_data;
             end
         end
     end

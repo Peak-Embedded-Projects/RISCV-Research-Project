@@ -165,6 +165,8 @@ module cm_and_core_tb ();
 
         $display("[%0t] Read Step Counter -> Expect 0x00000000", $time);
         axi_read({`SUB_SEL_CTRL, `CTRL_REG_STEP_COUNTER}, 32'h00000000, `AXI_RESP_OKAY);
+        $display("[%0t] Read Debug Vector -> Expect 0x00001400", $time); // FPGA: 00001400
+        axi_read({`SUB_SEL_CTRL, `CTRL_REG_DBG_VECTOR}, 32'h00001400, `AXI_RESP_OKAY);
 
         $display("[%0t] Read Reg 5 -> Expect 0x00000000", $time);
         axi_read({`SUB_SEL_REGFILE, 1'b0, 5'd5, 2'b00}, 32'h00000000, `AXI_RESP_OKAY);
@@ -173,7 +175,7 @@ module cm_and_core_tb ();
         #(CLK_PERIOD * 10);  // give core time to execute
         $display("[%0t] Read Step Counter -> Expect 0x00000001", $time);
         axi_read({`SUB_SEL_CTRL, `CTRL_REG_STEP_COUNTER}, 32'h00000001, `AXI_RESP_OKAY);
-        $display("[%0t] Read Debug Vector -> Expect 0x00001804", $time);
+        $display("[%0t] Read Debug Vector -> Expect 0x00001804", $time); // FPGA: 10001400
         axi_read({`SUB_SEL_CTRL, `CTRL_REG_DBG_VECTOR}, 32'h00001804, `AXI_RESP_OKAY);
         $display("[%0t] Read Reg 5 -> Expect 0x000000AB", $time);
         axi_read({`SUB_SEL_REGFILE, 1'b0, 5'd5, 2'b00}, 32'h000000AB, `AXI_RESP_OKAY);
