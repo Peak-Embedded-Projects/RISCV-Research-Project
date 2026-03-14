@@ -51,4 +51,11 @@ void cm_core_start();
  */
 void cm_core_stop();
 
+/**
+ * @brief Read the debug vector (data bits from the CPU for debugging purposes)
+ *
+ * @return uint32_t value of the debug vector
+ */
+uint32_t cm_debug_vector_read();
+
 #endif

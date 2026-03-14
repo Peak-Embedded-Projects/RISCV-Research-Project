@@ -60,6 +60,7 @@ module cm_and_core (
     wire [    `DATA_WIDTH-1:0] cm_regfile_read_data;
     wire                       cm_regfile_write_enable;
     wire [    `DATA_WIDTH-1:0] cm_regfile_write_data;
+    wire [    `DATA_WIDTH-1:0] cm_debug_vector;
 
     // Control Module
     soc_control u_soc_control (
@@ -93,7 +94,8 @@ module cm_and_core (
         .regfile_addr(cm_regfile_addr),
         .regfile_read_data(cm_regfile_read_data),
         .regfile_write_enable(cm_regfile_write_enable),
-        .regfile_write_data(cm_regfile_write_data)
+        .regfile_write_data(cm_regfile_write_data),
+        .core_debug_vector(cm_debug_vector)
     );
 
 
@@ -129,7 +131,8 @@ module cm_and_core (
         .cm_regfile_addr(cm_regfile_addr),
         .cm_regfile_read_data(cm_regfile_read_data),
         .cm_regfile_we(cm_regfile_write_enable),
-        .cm_regfile_write_data(cm_regfile_write_data)
+        .cm_regfile_write_data(cm_regfile_write_data),
+        .cm_debug_vector(cm_debug_vector)
     );
 
 endmodule

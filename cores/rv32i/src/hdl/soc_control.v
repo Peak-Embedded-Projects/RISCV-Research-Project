@@ -54,7 +54,7 @@ module soc_control (
     input CLK,
     input RSTn,
 
-    // connections to RISC-V register file
+    // connections to RISC-V core
     output reg                       pc_stall,
     input      [    `DATA_WIDTH-1:0] pc_read_data,
     output reg                       pc_write_enable,
@@ -63,6 +63,7 @@ module soc_control (
     input      [    `DATA_WIDTH-1:0] regfile_read_data,
     output reg                       regfile_write_enable,
     output reg [    `DATA_WIDTH-1:0] regfile_write_data,
+    input      [    `DATA_WIDTH-1:0] core_debug_vector,
 
     // AXI4-lite connections
     // AXI write address
@@ -283,6 +284,10 @@ module soc_control (
                                 control_address_valid <= 1'b1;
                                 control_read_data <= pc_read_data;
                             end
+                            `CTRL_REG_DBG_VECTOR: begin
+                                control_address_valid <= 1'b1;
+                                control_read_data <= core_debug_vector;
+                            end
                             default: begin
                                 control_read_data <= `DATA_WIDTH'b0;
                             end
@@ -307,14 +312,15 @@ module soc_control (
                         endcase
                 end
                 `STATE_WRITE_WAIT_DONE: begin
-                    case (sub_addr)
-                        `CTRL_REG_STEP: pc_stall <= 1'b1;
-                    endcase
+                    if (control_selected)
+                        case (sub_addr)
+                            `CTRL_REG_STEP: pc_stall <= 1'b1;
+                        endcase
                 end
             endcase
         end
     end
-    // PC write issue as async block (forwarding)
+    // PC write issue as async block (simply forwarding)
     always @(*) begin
         pc_write_enable = 1'b0;
         pc_write_data   = `DATA_WIDTH'b0;

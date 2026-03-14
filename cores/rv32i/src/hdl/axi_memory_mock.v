@@ -69,14 +69,16 @@ module axi_memory_mock (
     // Read process
     always @(posedge CLK or negedge RSTn) begin
         if (!RSTn) begin
-            S_AXI_ARREADY_ <= 1'b1;
+            S_AXI_ARREADY_ <= 1'b0;
             S_AXI_RVALID_  <= 1'b0;
             S_AXI_RDATA_   <= 0;
             S_AXI_RRESP_   <= `AXI_RESP_OKAY;
         end else begin
-            if (S_AXI_ARVALID && S_AXI_ARREADY_) begin
-                // Address handshake: slave is by default ready so the handshake happends immediately
-                //                    once the master issue the address
+            if (!S_AXI_ARREADY_ && !S_AXI_RVALID_ && S_AXI_ARVALID) begin
+                // Cycle delay: master has issued the address, assert ARREADY one cycle later
+                S_AXI_ARREADY_ <= 1'b1;
+            end else if (S_AXI_ARVALID && S_AXI_ARREADY_) begin
+                // Address handshake
                 S_AXI_ARREADY_ <= 1'b0;
                 S_AXI_RVALID_  <= 1'b1;  // data will be valid in the next cycle
                 S_AXI_RRESP_   <= `AXI_RESP_OKAY;
@@ -84,7 +86,6 @@ module axi_memory_mock (
             end else if (S_AXI_RREADY && S_AXI_RVALID_) begin
                 // Transaction complete: master accepts the data
                 S_AXI_RVALID_  <= 1'b0;
-                S_AXI_ARREADY_ <= 1'b1;  // heres ready for the new read transaction
             end
         end
     end
