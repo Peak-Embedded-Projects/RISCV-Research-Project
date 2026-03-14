@@ -45,7 +45,6 @@ void cm_single_step_core() {
   uint32_t address = XPAR_RISCV_MOD_NAME_BASEADDR + STEP_REQUEST;
   uint32_t step_trigger_val = 0x01;
   Xil_Out32(address, step_trigger_val);
-  usleep(500);
 }
 
 void cm_core_start() {
