@@ -41,11 +41,7 @@ void check_reg(uint8_t reg_idx, uint32_t expected) {
 }
 
 void check_pc(uint32_t expected) {
-  // uint32_t start_counter = cm_start_counter_read();
-  // uint32_t step_counter = cm_step_counter_read();
   // uint32_t dbg_vector = cm_debug_vector_read();
-  // xil_printf("start_counter = 0x%08X\n", start_counter);
-  // xil_printf("step_counter = 0x%08X\n", step_counter);
   // xil_printf("dbg_vector = 0x%08X\n", dbg_vector);
 
   uint32_t actual = cm_pc_read();

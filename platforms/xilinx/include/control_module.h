@@ -51,8 +51,11 @@ void cm_core_start();
  */
 void cm_core_stop();
 
-uint32_t cm_start_counter_read();
-uint32_t cm_step_counter_read();
+/**
+ * @brief Read the debug vector (data bits from the CPU for debugging purposes)
+ *
+ * @return uint32_t value of the debug vector
+ */
 uint32_t cm_debug_vector_read();
 
 #endif

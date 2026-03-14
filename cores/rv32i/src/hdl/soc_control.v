@@ -258,16 +258,11 @@ module soc_control (
     reg  control_address_valid;
     wire control_read_valid = control_selected && control_address_valid && sub_addr_aligned;
     wire control_write_valid = control_read_valid && write_strobe_full;
-    // Dummy for testing
-    reg [31:0] start_counter;
-    reg [31:0] step_counter;
     always @(posedge CLK or negedge RSTn) begin
         if (!RSTn) begin
             pc_stall <= 1'b1;
             control_read_data <= `DATA_WIDTH'b0;
             control_address_valid <= 1'b0;
-            start_counter <= 32'b0;
-            step_counter <= 32'b0;
         end else begin
             case (state)
                 `STATE_IDLE: begin
@@ -289,14 +284,6 @@ module soc_control (
                                 control_address_valid <= 1'b1;
                                 control_read_data <= pc_read_data;
                             end
-                            `CTRL_REG_START_COUNTER: begin
-                                control_address_valid <= 1'b1;
-                                control_read_data <= start_counter;
-                            end
-                            `CTRL_REG_STEP_COUNTER: begin
-                                control_address_valid <= 1'b1;
-                                control_read_data <= step_counter;
-                            end
                             `CTRL_REG_DBG_VECTOR: begin
                                 control_address_valid <= 1'b1;
                                 control_read_data <= core_debug_vector;
@@ -312,7 +299,6 @@ module soc_control (
                             `CTRL_REG_START: begin
                                 control_address_valid <= 1'b1;
                                 pc_stall <= 1'b0;
-                                start_counter <= start_counter + 1;
                             end
                             `CTRL_REG_STOP: begin
                                 control_address_valid <= 1'b1;
@@ -321,7 +307,6 @@ module soc_control (
                             `CTRL_REG_STEP: begin
                                 control_address_valid <= 1'b1;
                                 pc_stall <= 1'b0;
-                                step_counter <= step_counter + 1;
                             end
                             `CTRL_REG_PC: control_address_valid <= 1'b1;
                         endcase

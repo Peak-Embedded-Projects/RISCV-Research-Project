@@ -137,6 +137,9 @@ module riscv_cpu (
     end
     assign cm_pc_read_data = pc;
 
+    // Debug Vector.
+    // Can be assigned arbitrary data that is useful for debugging.
+    // Read via `CTRL_REG_DBG_VECTOR register in the control module
     assign cm_debug_vector = {
         3'b0, next_pc_valid, 3'b0, next_pc_ready,
         3'b0, pc_valid, 3'b0, pc_ready,
