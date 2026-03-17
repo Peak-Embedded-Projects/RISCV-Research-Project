@@ -179,7 +179,7 @@ def launch(
     hdl: Optional[str],
     mode: Optional[str],
     which: Optional[Union[List[str], str]],
-) -> None:
+) -> None:  # TODO: add cleaning !!!
     """
     Interactive HDL Build and Test Configuration tool
     """
@@ -340,7 +340,11 @@ def launch(
         )
         runtime_hardware_handler(vendor=vendor, hw=hw, core=selected_core_path, hdl=hdl)
     else:
-        pass
+        sim_config = {"CORE": core, "HDL": hdl, "MODE": mode, "TESTS_TO_RUN": which}
+        config_path = Path(".sim_run_config.json")
+        with open(config_path, "w") as f:
+            json.dump(sim_config, f, indent=4)
+        logging.info(f"Saved simulation configuration to {config_path}")
 
 
 if __name__ == "__main__":
