@@ -14,7 +14,7 @@ import json
 import logging
 from enum import Enum
 from pathlib import Path
-from typing import Optional
+from typing import Optional, List, Union
 
 import click
 
@@ -36,6 +36,11 @@ class runtime_type(Enum):
     SIMULATION = "SIMULATION"
 
 
+class simulation_mode_type(Enum):
+    COMPONENTS = "components"
+    FULL = "full"
+
+
 def load_vendors_and_boards() -> dict:
     """
     Load vendors/boards configuration from json
@@ -53,6 +58,25 @@ def load_vendors_and_boards() -> dict:
             exit(1)
 
 
+def detect_tests(mode: str) -> list:
+    """
+    Find available tests depending on the mode type
+    """
+
+    pattern = None
+    if mode == simulation_mode_type.COMPONENTS.value:
+        testbenches_dir = CORES_ROOT / "components_testbenches"
+        pattern = "test_*.py"
+    else:
+        testbenches_dir = CORES_ROOT / "test_programs"
+        pattern = "*.S"
+    if not testbenches_dir.exists():
+        logging.error(f"{testbenches_dir.name} doesn't exist")
+        exit(1)
+
+    return [t for t in testbenches_dir.rglob(pattern)]
+
+
 def get_riscv_cores() -> dict:
     """
     Return RISC-V IP Cores from cores/ directory
@@ -62,7 +86,11 @@ def get_riscv_cores() -> dict:
         logging.error(f"{CORES_ROOT.name} doesn't exist")
         exit(1)
 
-    return {p.name: p for p in CORES_ROOT.iterdir() if p.is_dir()}
+    return {
+        p.name: p
+        for p in CORES_ROOT.iterdir()
+        if p.is_dir() and p.name not in ["test_programs", "components_testbenches"]
+    }
 
 
 # TODO: move xilinx implementation to a separate function, this function should
@@ -129,12 +157,25 @@ def runtime_hardware_handler(
     type=click.Choice(["verilog", "vhdl", "systemverilog"], case_sensitive=False),
     help="HDL of IP Core",
 )
+@click.option(
+    "--mode",
+    type=click.Choice(["components", "full"], case_sensitive=False),
+    help="Specify whether to verify components of RISC-V core or an entire CPU",
+)
+@click.option(
+    "--which",
+    type=str,
+    multiple=True,
+    help="Specify whether to test ALL or selected tests",
+)
 def launch(
     runtime: Optional[str],
     vendor: Optional[str],
     board: Optional[str],
     core: Optional[str],
     hdl: Optional[str],
+    mode: Optional[str],
+    which: Optional[Union[List[str], str]],
 ) -> None:
     """
     Interactive HDL Build Configuration tool
@@ -189,7 +230,55 @@ def launch(
         board_params = available_boards[board_match]
 
     elif runtime == runtime_type.SIMULATION.value:
-        pass
+        if not mode:
+            mode = click.prompt(
+                "Select mode",
+                type=click.Choice(
+                    [e.value for e in simulation_mode_type], case_sensitive=False
+                ),
+                default="components",
+            )
+        mode = mode.lower()
+        available_tests_paths = detect_tests(mode)
+
+        test_mapping = {}
+        if mode == "components":
+            for p in available_tests_paths:
+                display_name = p.stem
+                test_mapping[display_name] = p.stem
+        else:
+            testbenches_dir = CORES_ROOT / "test_programs"
+            for p in available_tests_paths:
+                display_name = f"{p.parent.relative_to(testbenches_dir)}/"
+                test_mapping[display_name] = str(p.relative_to(testbenches_dir))
+
+        test_mapping["all"] = "all"
+
+        logging.info(f"For mode {mode} detected following tests:")
+        for t in test_mapping.keys():
+            if t != "all":
+                print(t)
+
+        if not which:
+            which = click.prompt(
+                "Select test/tests",
+                type=click.Choice(list(test_mapping.keys()), case_sensitive=False),
+                show_choices=False,
+            )
+
+        which_test_name_match = next(
+            (t for t in test_mapping.keys() if t.lower() == which.lower()), None
+        )
+
+        if not which_test_name_match:
+            logging.error(f"Test: {which} not found.")
+            exit(1)
+
+        if which_test_name_match.lower() == "all":
+            which = [val for key, val in test_mapping.items() if key != "all"]
+        else:
+            which = test_mapping[which_test_name_match]
+        # TODO: here mutliple environmental variables have to set as well as a temporary file with tests to run (for the runner to see them)
     else:
         logging.error(
             f"{runtime} not supported, choose one of {[e.value for e in runtime_type]}"
@@ -231,6 +320,9 @@ def launch(
     if runtime == "HARDWARE":
         click.echo(f"Vendor:  {vendor}")
         click.echo(f"Board:   {board}")
+    else:
+        click.echo(f"Mode:   {mode}")
+        click.echo(f"Tests:   {which}")
     click.echo(f"Core:    {core}")
     click.echo(f"HDL:    {hdl}")
 
