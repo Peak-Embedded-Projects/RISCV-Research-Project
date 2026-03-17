@@ -68,30 +68,30 @@ Make sure that the target hardware is listed inside `hardware.json` as well as t
 So far the workflow supports only Xilinx products.
 
 #### Simulation
-All simulations are written in language-agnostic style thanks to [cocotb](https://github.com/cocotb/cocotb). Specifying HDL allows cocotb to select the right simulator. Script ```build.py``` calls ```test_runner.py``` which under the hood uses combination of pytest and cocotb to execute all testbenches.
+All simulations are written in language-agnostic style using simulation toolchain that doesn't rely on any vendor-specific proprietary software. Specifying HDL allows to select the right simulator. Script `build.py` calls `test_runner.py` which under the hood uses combination of pytest and cocotb to execute all testbenches.
 
 Simulation mode can be selected by running:
 ```bash
 uv run python build.py --runtime simulation --core rv32i --hdl verilog --mode [components/full] --which [all/component_to_test/program_to_run]
 ```
 
-Simulation can be performed on any cores available in ```cores/```. By specyfying ```--hdl``` flag a dedicated simulator will be used:
+Simulation can be performed on any cores available in `cores/`. By specyfying `--hdl` flag a dedicated simulator will be used:
 
 - **verilog**: [icarus](https://github.com/steveicarus/iverilog)
 - **vhdl**: [ghdl](https://github.com/ghdl/ghdl)
 - **systemverilog**: [verilator](https://github.com/verilator/verilator) ???
 
-The next flag ```--mode``` specifies whether testbenches targeting singular core components should be tested or an entire CPU.
+The next flag `--mode` specifies whether testbenches targeting singular core components should be tested or an entire CPU.
 
-- ```--mode components```:
+- `--mode components`:
     
-    - ```--which all```: runs all testbenches from ```cores/components_testbenches/```
+    - `--which all`: runs all testbenches from `cores/components_testbenches/`
 
-    - ```--which [name of the component]```: runs specified component from ```cores/components_testbenches/```
-- ```--mode full```
+    - `--which [name of the component]`: runs specified component from `cores/components_testbenches/`
+- `--mode full`
 
-    - ```--which all```: runs all RISC-V assembly programs from ```cores/test_programs/``` (TODO: add programs there)
-    - ```--which [name of the program]```: runs selected program from ```cores/test_programs/```
+    - `--which all`: runs all RISC-V assembly programs from `cores/test_programs/` (TODO: add programs there)
+    - `--which [name of the program]`: runs selected program from `cores/test_programs/`
 
-In case of ```components``` mode logs are save inside ```cores/components_testbenches/log/```, while for ```full``` inside ```platforms/simulated/log/```.
+In case of `components` mode logs are save inside `cores/components_testbenches/log/`, while for `full` inside `platforms/simulated/log/`.
 
