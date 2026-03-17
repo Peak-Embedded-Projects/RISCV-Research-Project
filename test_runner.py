@@ -3,7 +3,7 @@ This script is responsible for detecting and executing all
 available tests from either cores/componenets_testbenches/ or
 platforms/simulated/.
 It assumes that build.py sets environmental variables: TARGET_HDL,
-TARGET_IP_CORE and TEST_MODE and then calls this script via pytest
+TARGET_IP_CORE, TEST_MODE, RISCV_PROGRAM and then calls this script via pytest
 """
 
 import os
@@ -22,6 +22,7 @@ SIMULATED_CPU_DIR = ROOT_DIR / "platforms" / "simulated"
 TARGET_HDL: str = os.getenv("TARGET_HDL")
 TARGET_IP_CORE: str = os.getenv("TARGET_RISCV_IP")
 TEST_MODE: str = os.getenv("TEST_MODE")
+RISCV_PROGRAM: str = os.getenv("RISCV_PROGRAM") # valid only for mode == full
 
 EXT_MAP = {
     "verilog": [".v", ".vh"],
@@ -79,7 +80,7 @@ def discover_tests() -> List[dict]:
         # TODO: can we make an assumption that the topmodule
         #       for the whole core is called riscv_cpu?
         config = {
-            "id": "riscv_simulated",
+            "id": f"riscv_simulated_{RISCV_PROGRAM}",
             "sim": SIMULATOR_MAP[TARGET_HDL],
             "hdl_toplevel": "riscv_cpu",
             "test_module": "platforms.simulated.test_full_cpu",
@@ -109,7 +110,7 @@ def test_generic_runner(config: dict) -> None:
         build_dir = COMPONENTS_TESTBENCHES_DIR / "build" / test_id
         log_dir = COMPONENTS_TESTBENCHES_DIR / "log"
     else:
-        build_dir = SIMULATED_CPU_DIR / "build"
+        build_dir = SIMULATED_CPU_DIR / "build" / test_id
         log_dir = SIMULATED_CPU_DIR / "log"
 
     build_dir.mkdir(parents=True, exist_ok=True)
