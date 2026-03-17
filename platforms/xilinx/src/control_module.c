@@ -16,6 +16,8 @@
 
 #define STOP_REQUEST ((SUB_SEL_CTRL << 8) | CTRL_REG_STOP)
 
+#define DEBUG_VECTOR ((SUB_SEL_CTRL << 8) | CTRL_REG_DBG_VECTOR)
+
 
 void cm_regfile_write(uint8_t register_num, int value) {
   uint32_t address = XPAR_RISCV_MOD_NAME_BASEADDR + REGFILE_REQUEST(register_num);
@@ -45,7 +47,6 @@ void cm_single_step_core() {
   uint32_t address = XPAR_RISCV_MOD_NAME_BASEADDR + STEP_REQUEST;
   uint32_t step_trigger_val = 0x01;
   Xil_Out32(address, step_trigger_val);
-  usleep(500);
 }
 
 void cm_core_start() {
@@ -58,4 +59,9 @@ void cm_core_stop() {
   uint32_t address = XPAR_RISCV_MOD_NAME_BASEADDR + STOP_REQUEST;
   uint32_t stop_trigger_val = 0x01;
   Xil_Out32(address, stop_trigger_val);
+}
+
+uint32_t cm_debug_vector_read(){
+  uint32_t address = XPAR_RISCV_MOD_NAME_BASEADDR + DEBUG_VECTOR;
+  return Xil_In32(address);
 }
