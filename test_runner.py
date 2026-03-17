@@ -92,8 +92,47 @@ def discover_tests() -> List[dict]:
     return config
 
 
-TEST_CONFIGS = discover_tests()
-config_ids = [config["id"] for config in TEST_CONFIGS]
+TEST_CONFIG = discover_tests()
+config_ids = [config["id"] for config in TEST_CONFIG]
+
 
 @pytest.mark.parametrize("config", TEST_CONFIG, ids=config_ids)
 def test_generic_runner(config: dict) -> None:
+    """
+    Main tests runner using pytest and cocotb
+    """
+
+    test_id = config["id"]
+    runner = get_runner(config["sim"])
+
+    if TEST_MODE == "components":
+        build_dir = COMPONENTS_TESTBENCHES_DIR / "build" / test_id
+        log_dir = COMPONENTS_TESTBENCHES_DIR / "log"
+    else:
+        build_dir = SIMULATED_CPU_DIR / "build"
+        log_dir = SIMULATED_CPU_DIR / "log"
+
+    build_dir.mkdir(parents=True, exist_ok=True)
+    log_dir.mkdir(parents=True, exist_ok=True)
+
+    build_log_file = log_dir / f"{test_id}_build.log"
+    test_log_file = log_dir / f"{test_id}_test.log"
+
+    # TODO: add different versions for vhdl (maybe system verilog as well)
+    runner.build(
+        sources=config["sources"],
+        hdl_toplevel=config["hdl_toplevel"],
+        includes=config["inlcudes"],
+        always=True,
+        build_dir=build_dir,
+        waves=config["waves"],
+        log_file=build_log_file,
+    )
+
+    runner.test(
+        hdl_toplevel=config["hdl_toplevel"],
+        test_module=config["test_module"],
+        waves=config["waves"],
+        build_dir=build_dir,
+        log_file=test_log_file,
+    )
