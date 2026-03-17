@@ -6,6 +6,9 @@ $ uv run python build.py
 or (just an example)
 $ uv run python build.py --runtime hardware --vendor xilinx --board "Zybo Z7-20" \
                          --core rv32i --hdl verilog
+$ uv run python build.py --runtime simulation --mode components --which ... \
+                         --core rv32i --hdl verilog
+
 
 REMARKS: it currently supports only Xilinx hardware.
 """
@@ -178,7 +181,7 @@ def launch(
     which: Optional[Union[List[str], str]],
 ) -> None:
     """
-    Interactive HDL Build Configuration tool
+    Interactive HDL Build and Test Configuration tool
     """
 
     if not runtime:
@@ -259,6 +262,9 @@ def launch(
             if t != "all":
                 print(t)
 
+        # TODO: currently works only in CLI, breaks when trying to use script
+        #       as a command. This is due to multiple=True as it treats input
+        #       like a tuple-> needs generalization in the code below
         if not which:
             which = click.prompt(
                 "Select test/tests",
