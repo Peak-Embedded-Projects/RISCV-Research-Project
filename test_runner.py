@@ -8,6 +8,7 @@ TARGET_IP_CORE and TEST_MODE and then calls this script via pytest
 
 import os
 from pathlib import Path
+from typing import List
 
 import pytest
 
@@ -31,7 +32,7 @@ EXT_MAP = {
 SIMULATOR_MAP = {"verilog": "icarus", "vhdl": "ghdl"}
 
 
-def discover_tests() -> list:
+def discover_tests() -> List[dict]:
     """
     Discover tests based on the mode.
     """
@@ -50,24 +51,49 @@ def discover_tests() -> list:
     file_extension = EXT_MAP[TARGET_HDL]
     include_files = list(core_include_path.rglob(f"*{file_extension[1]}"))
 
-    for test_file in tests_path.rglob("test_*.py"):
-        module_name = test_file.stem.replace("test_", "")
-        source = core_source_path / (module_name + file_extension[0])
+    # TODO: so far components mode will always execute all testbenches...
+    #       das ist nich ideal, we might want to select which testbench/ set of
+    #       them to run
+    if TEST_MODE == "components":
+        for test_file in tests_path.rglob("test_*.py"):
+            module_name = test_file.stem.replace("test_", "")
+            source = core_source_path / (module_name + file_extension[0])
 
-        # TODO: VHDL support needs to be well-thought in terms of
-        #       how generics can be detected, passed.. maybe the easiest
-        #       is to have a map of all components and their generics with defaults
-        #       that could be used here. In any case some if statement is needed as
-        #       VHDL config should not have includes inlcudes key but parameters instead!
+            # TODO: VHDL support needs to be well-thought in terms of
+            #       how generics can be detected, passed.. maybe the easiest
+            #       is to have a map of all components and their generics with defaults
+            #       that could be used here. In any case some if statement is needed as
+            #       VHDL config should not have includes inlcudes key but parameters instead!
+            config = {
+                "id": f"{module_name}_tb",
+                "sim": SIMULATOR_MAP[TARGET_HDL],
+                "hdl_toplevel": module_name,
+                "test_module": f"cores.components_testbenches.{test_file.stem}",
+                "sources": source,
+                "waves": True,
+                "includes": include_files,
+            }
+            configs.append(config)
+    else:
+        sources = list(core_source_path.rglob(f"*{file_extension[0]}"))
+        # TODO: can we make an assumption that the topmodule
+        #       for the whole core is called riscv_cpu?
         config = {
-            "id": f"{module_name}_tb",
+            "id": "riscv_simulated",
             "sim": SIMULATOR_MAP[TARGET_HDL],
-            "hdl_toplevel": module_name,
-            "test_module": f"cores.components_testbenches.{test_file.stem}",
-            "sources": source,
+            "hdl_toplevel": "riscv_cpu",
+            "test_module": "platforms.simulated.test_full_cpu",
+            "sources": sources,
             "waves": True,
             "includes": include_files,
         }
         configs.append(config)
 
     return config
+
+
+TEST_CONFIGS = discover_tests()
+config_ids = [config["id"] for config in TEST_CONFIGS]
+
+@pytest.mark.parametrize("config", TEST_CONFIG, ids=config_ids)
+def test_generic_runner(config: dict) -> None:
