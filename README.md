@@ -93,5 +93,17 @@ The next flag `--mode` specifies whether testbenches targeting singular core com
     - `--which all`: runs all RISC-V assembly programs from `cores/test_programs/` (TODO: add programs there)
     - `--which [name of the program]`: runs selected program from `cores/test_programs/`
 
+Examples:
+
+- single component/program:
+```bash
+uv run python build.py --runtime simulation --core rv32i --mode components/full --which test_1 --hdl verilog    
+```
+
+- multiple components/programs:
+```bash
+uv run python build.py --runtime simulation --core rv32i --mode components/full --which "test_1, test_2, ..." --hdl verilog    
+```
+
 In case of `components` mode logs are save inside `cores/components_testbenches/log/`, while for `full` inside `platforms/simulated/log/`.
 
