@@ -52,10 +52,7 @@ def discover_tests() -> List[dict]:
     """
 
     configs = []
-
-    tests_path = (
-        COMPONENTS_TESTBENCHES_DIR if TEST_MODE == "components" else SIMULATED_CPU_DIR
-    )
+    TARGET_IP_CORE, TARGET_HDL, TEST_MODE, tests_to_do = read_sim_config()
 
     # Assumes that *.v, *.vhd, *.sv files are inside hdl/
     # while (System)Verilog headers and VHDL packages are inside include/
@@ -63,26 +60,23 @@ def discover_tests() -> List[dict]:
     core_include_path = ROOT_DIR / TARGET_IP_CORE / "src" / "include"
 
     file_extension = EXT_MAP[TARGET_HDL]
+
+    # TODO: for vhdl this won't be needed
     include_files = list(core_include_path.rglob(f"*{file_extension[1]}"))
-
-    # TODO: so far components mode will always execute all testbenches...
-    #       das ist nich ideal, we might want to select which testbench/ set of
-    #       them to run
     if TEST_MODE == "components":
-        for test_file in tests_path.rglob("test_*.py"):
-            module_name = test_file.stem.replace("test_", "")
-            source = core_source_path / (module_name + file_extension[0])
-
+        for test in tests_to_do:
+            source = core_source_path / (test + file_extension[0])
             # TODO: VHDL support needs to be well-thought in terms of
             #       how generics can be detected, passed.. maybe the easiest
             #       is to have a map of all components and their generics with defaults
             #       that could be used here. In any case some if statement is needed as
             #       VHDL config should not have includes inlcudes key but parameters instead!
+
             config = {
-                "id": f"{module_name}_tb",
+                "id": f"{test}_tb",
                 "sim": SIMULATOR_MAP[TARGET_HDL],
-                "hdl_toplevel": module_name,
-                "test_module": f"cores.components_testbenches.{test_file.stem}",
+                "hdl_toplevel": test,
+                "test_module": f"cores.components_testbenches.{test}",
                 "sources": source,
                 "waves": True,
                 "includes": include_files,
@@ -92,6 +86,8 @@ def discover_tests() -> List[dict]:
         sources = list(core_source_path.rglob(f"*{file_extension[0]}"))
         # TODO: can we make an assumption that the topmodule
         #       for the whole core is called riscv_cpu?
+        # TODO: think how to pass information about program/programs
+        #       to execute
         config = {
             "id": "riscv_simulated",
             "sim": SIMULATOR_MAP[TARGET_HDL],
@@ -116,7 +112,7 @@ def test_generic_runner(config: dict) -> None:
     Main tests runner using pytest and cocotb
     """
 
-    TARGET_IP_CORE, TARGET_HDL, TEST_MODE = read_sim_config()
+    TARGET_IP_CORE, TARGET_HDL, TEST_MODE, _ = read_sim_config()
 
     test_id = config["id"]
     runner = get_runner(config["sim"])
