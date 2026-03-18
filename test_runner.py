@@ -44,8 +44,6 @@ def read_sim_config() -> tuple:
     )
 
 
-#
-# TODO: refactor neede given how now I'm informing about tests to execute
 def discover_tests() -> List[dict]:
     """
     Discover tests based on the mode.
