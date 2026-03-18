@@ -6,7 +6,7 @@ $ uv run python build.py
 or (just an example)
 $ uv run python build.py --runtime hardware --vendor xilinx --board "Zybo Z7-20" \
                          --core rv32i --hdl verilog
-$ uv run python build.py --runtime simulation --mode components --which ... \
+$ uv run python build.py --runtime simulation --mode components --which all/test_1/"test1, test_2, ..."\
                          --core rv32i --hdl verilog
 
 
@@ -17,7 +17,7 @@ import json
 import logging
 from enum import Enum
 from pathlib import Path
-from typing import Optional, List, Union
+from typing import Optional
 
 import click
 
@@ -168,8 +168,7 @@ def runtime_hardware_handler(
 @click.option(
     "--which",
     type=str,
-    multiple=True,
-    help="Specify whether to test ALL or selected tests",
+    help="Specify whether to test ALL or selected tests (comma-separated)",
 )
 def launch(
     runtime: Optional[str],
@@ -178,7 +177,7 @@ def launch(
     core: Optional[str],
     hdl: Optional[str],
     mode: Optional[str],
-    which: Optional[Union[List[str], str]],
+    which: Optional[str],
 ) -> None:  # TODO: add cleaning !!!
     """
     Interactive HDL Build and Test Configuration tool
@@ -262,29 +261,28 @@ def launch(
             if t != "all":
                 print(t)
 
-        # TODO: currently works only in CLI, breaks when trying to use script
-        #       as a command. This is due to multiple=True as it treats input
-        #       like a tuple-> needs generalization in the code below
         if not which:
-            which = click.prompt(
-                "Select test/tests",
-                type=click.Choice(list(test_mapping.keys()), case_sensitive=False),
-                show_choices=False,
+            which = click.prompt("Select test/tests (comma-separated)", type=str)
+        which_list = [w.strip() for w in which.split(",")]
+        final_tests = []
+        for w in which_list:
+            match = next(
+                (t for t in test_mapping.keys() if t.lower() == w.lower()), None
             )
 
-        which_test_name_match = next(
-            (t for t in test_mapping.keys() if t.lower() == which.lower()), None
-        )
+            if not match:
+                logging.error(
+                    f"Test: '{w}' not found. Available tests: {list(test_mapping.keys())}"
+                )
+                exit(1)
 
-        if not which_test_name_match:
-            logging.error(f"Test: {which} not found.")
-            exit(1)
+            if match.lower() == "all":
+                final_tests = [val for key, val in test_mapping.items() if key != "all"]
+                break
+            else:
+                final_tests.append(test_mapping[match])
 
-        if which_test_name_match.lower() == "all":
-            which = [val for key, val in test_mapping.items() if key != "all"]
-        else:
-            which = test_mapping[which_test_name_match]
-        # TODO: here mutliple environmental variables have to set as well as a temporary file with tests to run (for the runner to see them)
+        which = final_tests
     else:
         logging.error(
             f"{runtime} not supported, choose one of {[e.value for e in runtime_type]}"
