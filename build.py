@@ -16,6 +16,7 @@ REMARKS: it currently supports only Xilinx hardware.
 import json
 import logging
 from enum import Enum
+import subprocess
 from pathlib import Path
 from typing import Optional
 
@@ -94,6 +95,17 @@ def get_riscv_cores() -> dict:
         for p in CORES_ROOT.iterdir()
         if p.is_dir() and p.name not in ["test_programs", "components_testbenches"]
     }
+
+
+def runtime_simulation_handler() -> None:
+    """
+    Execute tests calling pytest
+    """
+
+    cmd = ["pytest", "test_runner.py"]
+
+    logging.info("Running tests ...")
+    subprocess.run(cmd)
 
 
 # TODO: move xilinx implementation to a separate function, this function should
@@ -342,7 +354,8 @@ def launch(
         config_path = Path(".sim_run_config.json")
         with open(config_path, "w") as f:
             json.dump(sim_config, f, indent=4)
-        logging.info(f"Saved simulation configuration to {config_path}")
+
+        runtime_simulation_handler()
 
 
 if __name__ == "__main__":
