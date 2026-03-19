@@ -54,30 +54,30 @@ def discover_tests() -> List[dict]:
 
     # Assumes that *.v, *.vhd, *.sv files are inside hdl/
     # while (System)Verilog headers and VHDL packages are inside include/
-    core_source_path = ROOT_DIR / TARGET_IP_CORE / "src" / "hdl"
-    core_include_path = ROOT_DIR / TARGET_IP_CORE / "src" / "include"
+    core_source_path = ROOT_DIR / "cores" / TARGET_IP_CORE / "src" / "hdl"
+    core_include_path = ROOT_DIR / "cores" / TARGET_IP_CORE / "src" / "include"
 
     file_extension = EXT_MAP[TARGET_HDL]
 
     # TODO: for vhdl this won't be needed
-    include_files = list(core_include_path.rglob(f"*{file_extension[1]}"))
+    # include_files = list(core_include_path.rglob(f"*{file_extension[1]}"))
     if TEST_MODE == "components":
         for test in tests_to_do:
-            source = core_source_path / (test + file_extension[0])
+            hw_name = test.replace("test_", "")
+            source = core_source_path / (hw_name + file_extension[0])
             # TODO: VHDL support needs to be well-thought in terms of
             #       how generics can be detected, passed.. maybe the easiest
             #       is to have a map of all components and their generics with defaults
             #       that could be used here. In any case some if statement is needed as
             #       VHDL config should not have includes inlcudes key but parameters instead!
-
             config = {
                 "id": f"{test}_tb",
                 "sim": SIMULATOR_MAP[TARGET_HDL],
-                "hdl_toplevel": test,
+                "hdl_toplevel": hw_name,
                 "test_module": f"cores.components_testbenches.{test}",
-                "sources": source,
+                "sources": [source],
                 "waves": True,
-                "includes": include_files,
+                "includes": [core_include_path],
             }
             configs.append(config)
     else:
@@ -93,11 +93,11 @@ def discover_tests() -> List[dict]:
             "test_module": "platforms.simulated.test_full_cpu",
             "sources": sources,
             "waves": True,
-            "includes": include_files,
+            "includes": [core_include_path],
         }
         configs.append(config)
 
-    return config
+    return configs
 
 
 TEST_CONFIG = discover_tests()
@@ -117,7 +117,7 @@ def test_generic_runner(config: dict) -> None:
 
     if TEST_MODE == "components":
         build_dir = COMPONENTS_TESTBENCHES_DIR / "build" / test_id
-        log_dir = COMPONENTS_TESTBENCHES_DIR / "log"
+        log_dir = COMPONENTS_TESTBENCHES_DIR / "log" / test_id
     else:
         build_dir = SIMULATED_CPU_DIR / "build"
         log_dir = SIMULATED_CPU_DIR / "log"
@@ -132,7 +132,7 @@ def test_generic_runner(config: dict) -> None:
     runner.build(
         sources=config["sources"],
         hdl_toplevel=config["hdl_toplevel"],
-        includes=config["inlcudes"],
+        includes=config["includes"],
         always=True,
         build_dir=build_dir,
         waves=config["waves"],
