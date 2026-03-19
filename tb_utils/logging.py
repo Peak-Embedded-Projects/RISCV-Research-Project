@@ -5,7 +5,7 @@ def log_alu_result(dut):
 
     dut._log.info(
         f"ctrl={dut.alu_ctrl.value.binstr} | "
-        f"src1={dut.src1.value.hex()} | "
-        f"src2={dut.src2.value.hex()} | "
-        f"result={dut.alu_result.value.hex()}"
+        f"src1={hex(dut.src1.value)} | "
+        f"src2={hex(dut.src2.value)} | "
+        f"result={hex(dut.result.value)}"
     )
