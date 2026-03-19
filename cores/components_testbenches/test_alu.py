@@ -6,7 +6,7 @@ reg  [`DATA_WIDTH-1:0]     src1;
 reg  [`DATA_WIDTH-1:0]     src2;
 
 ALU outputs
-wire [`DATA_WIDTH-1:0]     alu_result;
+wire [`DATA_WIDTH-1:0]     result;
 wire                       take_branch;
 
 """
