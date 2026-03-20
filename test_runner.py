@@ -146,4 +146,5 @@ def test_generic_runner(config: dict) -> None:
         waves=config["waves"],
         build_dir=build_dir,
         log_file=test_log_file,
+        extra_env={"TARGET_CORE": TARGET_IP_CORE},
     )
