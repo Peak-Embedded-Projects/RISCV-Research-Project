@@ -88,6 +88,10 @@ async def fetch_driver(dut, address) -> int:
 
 
 async def load_store_driver(dut, is_write, address, data, strobe) -> int:
+    """
+    Mocking load/stroe operations
+    """
+
     await RisingEdge(dut.CLK)
 
     dut.load_store_addr.value = address
