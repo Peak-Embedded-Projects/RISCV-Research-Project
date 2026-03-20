@@ -20,7 +20,7 @@ from cocotb.clock import Clock
 from cocotb.triggers import FallingEdge, Timer, ClockCycles
 
 from tb_utils.resets import reset_active_low
-from tb_utils.logging import log_registers
+from tb_utils.logging import log_registers, log_err
 
 
 @cocotb.test()
@@ -43,8 +43,8 @@ async def test_register_file(dut):
 
     await Timer(1, unit="ns")
     log_registers(dut)
-    assert dut.rs1.value == 0, f"Test 1 FAILED: x1 not 0, got {hex(dut.rs1.value)}"
-    assert dut.rs2.value == 0, f"Test 1 FAILED: x2 not 0, got {hex(dut.rs2.value)}"
+    assert dut.rs1.value == 0, log_err(0, dut.rs1.value)
+    assert dut.rs2.value == 0, log_err(0, dut.rs2.value)
 
     dut._log.info("Test 2: Hardwired x0")
     await FallingEdge(dut.CLK)

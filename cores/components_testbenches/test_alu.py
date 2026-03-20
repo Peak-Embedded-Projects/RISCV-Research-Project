@@ -14,7 +14,7 @@ wire                       take_branch;
 import cocotb
 from cocotb.triggers import Timer
 
-from tb_utils.logging import log_alu_result
+from tb_utils.logging import log_alu_result, log_err
 from tb_utils.bitops import get_alu_ctrl, to_32b
 from tb_utils.constants import *
 
@@ -163,6 +163,6 @@ async def test_alu_combinational(dut):
         actual_result = dut.result.value.integer
         assert (
             actual_result == tc["exp"]
-        ), f"[{tc['name']} ERROR] expected {hex(tc['exp'])}, got {hex(actual_result)}"
+        ), log_err(tc["exp"], actual_result)
 
     dut._log.info("All ALU tests completed successfully!")
