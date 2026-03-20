@@ -22,3 +22,11 @@ def log_registers(dut):
         f"wrt_addr={int(dut.write_addr.value):02d} | wrt_dat={hex(dut.write_data.value)} | "
         f"write={dut.write_enable.value}"
     )
+
+
+def log_err(exp, act) -> str:
+    """
+    Prepare incorrect value log
+    """
+
+    return f"Expected {hex(exp)}, got {hex(act)}"
