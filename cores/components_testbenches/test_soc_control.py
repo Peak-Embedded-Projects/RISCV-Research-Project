@@ -50,14 +50,7 @@ from cocotbext.axi import AxiLiteBus, AxiLiteMaster
 
 from tb_utils.constants import *
 from tb_utils.resets import reset_active_low
-
-
-def get_reg_addr(reg: int) -> int:
-    """
-    Calculate 16-bit AXI address for a specific register
-    """
-
-    return SUB_SEL_REGFILE | (reg << 2)
+from tb_utils.memory import get_reg_addr
 
 
 async def regfile_write_monitor(dut, writes_list):
