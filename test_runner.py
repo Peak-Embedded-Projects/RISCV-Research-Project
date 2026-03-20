@@ -61,10 +61,11 @@ def discover_tests() -> List[dict]:
 
     # TODO: for vhdl this won't be needed
     # include_files = list(core_include_path.rglob(f"*{file_extension[1]}"))
+    sources = list(core_source_path.rglob(f"*{file_extension[0]}"))
     if TEST_MODE == "components":
         for test in tests_to_do:
             hw_name = test.replace("test_", "")
-            source = core_source_path / (hw_name + file_extension[0])
+            # source = core_source_path / (hw_name + file_extension[0])
             # TODO: VHDL support needs to be well-thought in terms of
             #       how generics can be detected, passed.. maybe the easiest
             #       is to have a map of all components and their generics with defaults
@@ -75,13 +76,13 @@ def discover_tests() -> List[dict]:
                 "sim": SIMULATOR_MAP[TARGET_HDL],
                 "hdl_toplevel": hw_name,
                 "test_module": f"cores.components_testbenches.{test}",
-                "sources": [source],
+                "sources": sources,
                 "waves": True,
                 "includes": [core_include_path],
             }
             configs.append(config)
     else:
-        sources = list(core_source_path.rglob(f"*{file_extension[0]}"))
+        # sources = list(core_source_path.rglob(f"*{file_extension[0]}"))
         # TODO: can we make an assumption that the topmodule
         #       for the whole core is called riscv_cpu?
         # TODO: think how to pass information about program/programs
