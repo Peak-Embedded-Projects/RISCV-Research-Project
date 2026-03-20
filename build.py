@@ -268,13 +268,13 @@ def launch(
 
         test_mapping["all"] = "all"
 
-        logging.info(f"For mode {mode} detected following tests:")
-        for t in test_mapping.keys():
-            if t != "all":
-                print(t)
-
         if not which:
+            logging.info(f"For mode {mode} detected following tests:")
+            for t in test_mapping.keys():
+                if t != "all":
+                    print(t)
             which = click.prompt("Select test/tests (comma-separated)", type=str)
+
         which_list = [w.strip() for w in which.split(",")]
         final_tests = []
         for w in which_list:
