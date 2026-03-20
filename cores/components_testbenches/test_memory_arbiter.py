@@ -146,8 +146,7 @@ async def test_memory_arbiter(dut):
     cocotb.start_soon(Clock(dut.CLK, 10, unit="ns").start())
     await Timer(
         1, unit="step"
-    )  # freeze python and let initialization propagate through one step
-
+    )  # freeze python and let initialization propagate through one step, otherwise it crushes
     ram = AxiLiteRam(
         AxiLiteBus.from_prefix(dut, "M_AXI"),
         dut.CLK,
