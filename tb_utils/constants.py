@@ -52,8 +52,9 @@ AXI_RESP_SLVERR = 0b10
 AXI_RESP_DECERR = 0b11
 
 # Control Module commands
-SUB_SEL_CTRL = 0x01
-SUB_SEL_REGFILE = 0x02
+SUB_SEL_CTRL = 0x01 << 8  # match with latched_address[15:8]
+SUB_SEL_REGFILE = 0x02 << 8  # match with latched_address[15:8]
+
 CTRL_REG_STATUS = 0x00
 CTRL_REG_START = 0x04
 CTRL_REG_STOP = 0x08
