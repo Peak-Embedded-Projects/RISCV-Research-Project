@@ -19,6 +19,7 @@
 // 
 //////////////////////////////////////////////////////////////////////////////////
 `include "../../include/rv32i_params.vh"
+`include "../include/cm_commands.vh"
 
 
 module register_file_tb(
@@ -27,6 +28,7 @@ module register_file_tb(
     
     reg clk;
     reg rst;
+    wire RSTn = ~rst;
     
     reg [`REG_ADDR_WIDTH-1:0] rs1_addr;
     reg [`REG_ADDR_WIDTH-1:0] rs2_addr;
@@ -57,16 +59,23 @@ module register_file_tb(
     
     
     register_file uut(
-        .clk(clk),
-        .rst(rst),
-        .read_enable(rd_enbl),
+        .CLK(clk),
+        .RSTn(RSTn),
         .rs1_addr(rs1_addr),
         .rs2_addr(rs2_addr),
         .rs1(rs1),
         .rs2(rs2),
         .write_enable(wrt_enbl),
         .write_addr(wrt_addr),
-        .write_data(wrt_dat)
+        .write_data(wrt_dat),
+        .extra_addr(`REG_ADDR_WIDTH'b0),
+        .extra_read_data(),
+        .extra_write_enable(1'b0),
+        .extra_write_data(`DATA_WIDTH'b0),
+        .fault_write_enable(1'b0),
+        .fault_addr(`REG_ADDR_WIDTH'b0),
+        .fault_mode(`FAULT_MODE_WIDTH'b0),
+        .fault_mask(`DATA_WIDTH'b0)
     );
     
     initial begin

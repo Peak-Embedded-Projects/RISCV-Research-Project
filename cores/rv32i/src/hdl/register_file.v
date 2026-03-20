@@ -21,6 +21,7 @@
 // 
 //////////////////////////////////////////////////////////////////////////////////
 `include "rv32i_params.vh"
+`include "cm_commands.vh"
 
 
 module register_file (
@@ -42,10 +43,27 @@ module register_file (
     input      [`REG_ADDR_WIDTH-1:0] extra_addr,
     output reg [    `DATA_WIDTH-1:0] extra_read_data,
     input                            extra_write_enable,
-    input      [    `DATA_WIDTH-1:0] extra_write_data
+    input      [    `DATA_WIDTH-1:0] extra_write_data,
+
+    // FAULT injection interface
+    input                            fault_write_enable,
+    input      [`REG_ADDR_WIDTH-1:0] fault_addr,
+    input      [`FAULT_MODE_WIDTH-1:0] fault_mode,
+    input      [    `DATA_WIDTH-1:0] fault_mask
 );
 
     reg [`DATA_WIDTH-1:0] registers [1:`NUM_REGISTERS-1]; // skipping x0, which is hard-wired to 32'b0
+
+    wire [`DATA_WIDTH-1:0] fault_current_value =
+        (fault_addr == `REG_ADDR_WIDTH'b0) ? `DATA_WIDTH'b0 : registers[fault_addr];
+    wire [`DATA_WIDTH-1:0] fault_injected_data;
+
+    fault_injector u_fault_injector (
+        .current_value (fault_current_value),
+        .fault_mask    (fault_mask),
+        .fault_mode    (fault_mode),
+        .injected_value(fault_injected_data)
+    );
 
     // WRITE
     integer reg_id;
@@ -61,6 +79,8 @@ module register_file (
                 registers[write_addr] <= write_data;
             end else if (extra_write_enable && extra_addr != `REG_ADDR_WIDTH'b0) begin
                 registers[extra_addr] <= extra_write_data;
+            end else if (fault_write_enable && fault_addr != `REG_ADDR_WIDTH'b0) begin
+                registers[fault_addr] <= fault_injected_data;
             end
         end
     end

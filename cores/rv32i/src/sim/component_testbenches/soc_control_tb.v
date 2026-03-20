@@ -56,6 +56,10 @@ module soc_control_tb ();
     wire [      `DATA_WIDTH-1:0] cm_regfile_write_data;
     wire [  `REG_ADDR_WIDTH-1:0] cm_regfile_addr;
     wire [      `DATA_WIDTH-1:0] cm_regfile_read_data;
+    wire [  `REG_ADDR_WIDTH-1:0] cm_regfile_fault_addr;
+    wire [`FAULT_MODE_WIDTH-1:0] cm_regfile_fault_mode;
+    wire [      `DATA_WIDTH-1:0] cm_regfile_fault_mask;
+    wire                         cm_regfile_fault_enable;
 
     // --- Instantiate the Device Under Test (DUT) ---
     soc_control SOC_CONTROL_dut (
@@ -66,6 +70,10 @@ module soc_control_tb ();
         .regfile_read_data(cm_regfile_read_data),
         .regfile_write_enable(cm_regfile_we),
         .regfile_write_data(cm_regfile_write_data),
+        .regfile_fault_addr(cm_regfile_fault_addr),
+        .regfile_fault_mode(cm_regfile_fault_mode),
+        .regfile_fault_mask(cm_regfile_fault_mask),
+        .regfile_fault_enable(cm_regfile_fault_enable),
 
         // connections to AXI4 Lite
         // AXI write address
@@ -111,7 +119,11 @@ module soc_control_tb ();
         .extra_addr(cm_regfile_addr),
         .extra_read_data(cm_regfile_read_data),
         .extra_write_enable(cm_regfile_we),
-        .extra_write_data(cm_regfile_write_data)
+        .extra_write_data(cm_regfile_write_data),
+        .fault_write_enable(cm_regfile_fault_enable),
+        .fault_addr(cm_regfile_fault_addr),
+        .fault_mode(cm_regfile_fault_mode),
+        .fault_mask(cm_regfile_fault_mask)
     );
 
     // Clock generator
@@ -152,32 +164,78 @@ module soc_control_tb ();
         // --- TEST 1: Basic Read/Write Verification ---
         // Write 0xDEADBEEF to Register 1
         $display("[%0t] Test 1: Write Reg 1 -> 0xDEADBEEF", $time);
-        axi_write({`SUB_SEL_REGFILE, 1'b0, 5'd4, 2'b00}, 32'hDEADBEEF, 4'b1111, `AXI_RESP_OKAY);
+        axi_write(`REGFILE_ADDR(4), 32'hDEADBEEF, 4'b1111, `AXI_RESP_OKAY);
 
         // Read Register 1
         $display("[%0t] Test 2: Read Reg 1 -> Expect 0xDEADBEEF", $time);
-        axi_read({`SUB_SEL_REGFILE, 1'b0, 5'd4, 2'b00}, 32'hDEADBEEF, `AXI_RESP_OKAY);
+        axi_read(`REGFILE_ADDR(4), 32'hDEADBEEF, `AXI_RESP_OKAY);
 
         // --- TEST 2: Strobe (Partial Write) Verification ---
         // 1. Initialize Reg 2 with 0xFFFFFFFF
         $display("[%0t] Test 3: Write Reg 2 -> 0xFFFFFFFF", $time);
-        axi_write({`SUB_SEL_REGFILE, 1'b0, 5'd8, 2'b00}, 32'hFFFFFFFF, 4'b1111, `AXI_RESP_OKAY);
+        axi_write(`REGFILE_ADDR(8), 32'hFFFFFFFF, 4'b1111, `AXI_RESP_OKAY);
 
         // 2. Overwrite middle bytes (Bits 15:8 and 23:16) with 0x55, 0xAA
         // Strobe 0110 means only write to byte 1 and 2.
         // Data: 0x00AA5500
         // This should fail since we only allow writes to all 32 bits at once
         $display("[%0t] Test 4: Strobe Write Reg 2 (Mask 0110) -> 0x..AA55..", $time);
-        axi_write({`SUB_SEL_REGFILE, 1'b0, 5'd8, 2'b00}, 32'h00AA5500, 4'b0110, `AXI_RESP_SLVERR);
+        axi_write(`REGFILE_ADDR(8), 32'h00AA5500, 4'b0110, `AXI_RESP_SLVERR);
 
         // 3. Read Back. Expect 0xFFAA55FF
         $display("[%0t] Test 5: Read Reg 2 -> Expect still 0xFFFFFFFF", $time);
-        axi_read({`SUB_SEL_REGFILE, 1'b0, 5'd8, 2'b00}, 32'hFFFFFFFF, `AXI_RESP_OKAY);
+        axi_read(`REGFILE_ADDR(8), 32'hFFFFFFFF, `AXI_RESP_OKAY);
 
         // Check that writing/reading to/from an non existant register 34 fails
         $display("[%0t] Test 6: Write Reg 34", $time);
-        axi_write({`SUB_SEL_REGFILE, 1'b1, 5'd2, 2'b00}, 32'hABABDEED, 4'b1111, `AXI_RESP_SLVERR);
-        axi_read({`SUB_SEL_REGFILE, 1'b1, 5'd2, 2'b00}, 32'b0, `AXI_RESP_SLVERR);
+        axi_write(`REGFILE_ADDR(34), 32'hABABDEED, 4'b1111, `AXI_RESP_SLVERR);
+        axi_read(`REGFILE_ADDR(34), 32'b0, `AXI_RESP_SLVERR);
+
+        $display("[%0t] Test 7: Write Reg x0 must fail", $time);
+        axi_write(`REGFILE_ADDR(0), 32'hFFFFFFFF, 4'b1111, `AXI_RESP_SLVERR);
+        axi_read(`REGFILE_ADDR(0), 32'h00000000, `AXI_RESP_OKAY);
+
+        // --- TEST 3: Fault Injection Verification ---
+        $display("[%0t] Test 8: Init Reg 3 -> 0x00FF00FF", $time);
+        axi_write(`REGFILE_ADDR(3), 32'h00FF00FF, 4'b1111, `AXI_RESP_OKAY);
+
+        $display("[%0t] Test 9: Fault XOR Reg 3 with 0x0000FFFF", $time);
+        axi_write(`FAULT_ADDR(`FAULT_MODE_XOR_MASK, 3), 32'h0000FFFF, 4'b1111, `AXI_RESP_OKAY);
+        axi_read(`REGFILE_ADDR(3), 32'h00FFFF00, `AXI_RESP_OKAY);
+
+        $display("[%0t] Test 10: Fault OR Reg 3 with 0x0F000000", $time);
+        axi_write(`FAULT_ADDR(`FAULT_MODE_OR_MASK, 3), 32'h0F000000, 4'b1111, `AXI_RESP_OKAY);
+        axi_read(`REGFILE_ADDR(3), 32'h0FFFFF00, `AXI_RESP_OKAY);
+
+        $display("[%0t] Test 11: Fault ANDN Reg 3 with 0x00FF0000", $time);
+        axi_write(`FAULT_ADDR(`FAULT_MODE_ANDN_MASK, 3), 32'h00FF0000, 4'b1111, `AXI_RESP_OKAY);
+        axi_read(`REGFILE_ADDR(3), 32'h0F00FF00, `AXI_RESP_OKAY);
+
+        $display("[%0t] Test 12: Fault OVERWRITE Reg 3 -> 0x13579BDF", $time);
+        axi_write(`FAULT_ADDR(`FAULT_MODE_OVERWRITE, 3), 32'h13579BDF, 4'b1111, `AXI_RESP_OKAY);
+        axi_read(`REGFILE_ADDR(3), 32'h13579BDF, `AXI_RESP_OKAY);
+
+        $display("[%0t] Test 13: Fault mode 2'b11 (valid pattern, treated as ANDN_MASK)", $time);
+        axi_write(`FAULT_ADDR(2'b11, 3), 32'h00000001, 4'b1111, `AXI_RESP_OKAY);
+        axi_read(`REGFILE_ADDR(3), 32'h13579BDE, `AXI_RESP_OKAY);
+
+        $display("[%0t] Test 14: Fault write with partial strobe must fail", $time);
+        axi_write(`FAULT_ADDR(`FAULT_MODE_XOR_MASK, 3), 32'h00FF00FF, 4'b0011, `AXI_RESP_SLVERR);
+        axi_read(`REGFILE_ADDR(3), 32'h13579BDE, `AXI_RESP_OKAY);
+
+        $display("[%0t] Test 15: Fault write with sub_addr[7:6] != 0 must fail", $time);
+        axi_write(`FAULT_ADDR_RAW((`FAULT_MODE_XOR_MASK << `FAULT_MODE_LSB) | (2'b01 << 6) | (3 << 2)),
+              32'h00FF00FF, 4'b1111, `AXI_RESP_SLVERR);
+        axi_read(`REGFILE_ADDR(3), 32'h13579BDE, `AXI_RESP_OKAY);
+
+        $display("[%0t] Test 16: Fault write with sub_addr[11:10] != 0 must fail", $time);
+        axi_write(`FAULT_ADDR_RAW((2'b01 << 10) | (`FAULT_MODE_XOR_MASK << `FAULT_MODE_LSB) | (3 << 2)),
+              32'h00FF00FF, 4'b1111, `AXI_RESP_SLVERR);
+        axi_read(`REGFILE_ADDR(3), 32'h13579BDE, `AXI_RESP_OKAY);
+
+        $display("[%0t] Test 17: Fault write to x0 must fail", $time);
+        axi_write(`FAULT_ADDR(`FAULT_MODE_OVERWRITE, 0), 32'hFFFFFFFF, 4'b1111, `AXI_RESP_SLVERR);
+        axi_read(`REGFILE_ADDR(0), 32'h00000000, `AXI_RESP_OKAY);
 
         #(CLK_PERIOD * 5);
 

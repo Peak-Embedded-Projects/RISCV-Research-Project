@@ -3,6 +3,7 @@
 `include "rv32i_params.vh"
 `include "rv32i_control.vh"
 `include "axi_configuration.vh"
+`include "cm_commands.vh"
 
 module cm_and_core (
     input CLK,
@@ -60,6 +61,10 @@ module cm_and_core (
     wire [    `DATA_WIDTH-1:0] cm_regfile_read_data;
     wire                       cm_regfile_write_enable;
     wire [    `DATA_WIDTH-1:0] cm_regfile_write_data;
+    wire [`REG_ADDR_WIDTH-1:0] cm_regfile_fault_addr;
+    wire [`FAULT_MODE_WIDTH-1:0] cm_regfile_fault_mode;
+    wire [    `DATA_WIDTH-1:0] cm_regfile_fault_mask;
+    wire                       cm_regfile_fault_enable;
     wire [    `DATA_WIDTH-1:0] cm_debug_vector;
 
     // Control Module
@@ -95,6 +100,10 @@ module cm_and_core (
         .regfile_read_data(cm_regfile_read_data),
         .regfile_write_enable(cm_regfile_write_enable),
         .regfile_write_data(cm_regfile_write_data),
+        .regfile_fault_addr(cm_regfile_fault_addr),
+        .regfile_fault_mode(cm_regfile_fault_mode),
+        .regfile_fault_mask(cm_regfile_fault_mask),
+        .regfile_fault_enable(cm_regfile_fault_enable),
         .core_debug_vector(cm_debug_vector)
     );
 
@@ -132,6 +141,10 @@ module cm_and_core (
         .cm_regfile_read_data(cm_regfile_read_data),
         .cm_regfile_we(cm_regfile_write_enable),
         .cm_regfile_write_data(cm_regfile_write_data),
+        .cm_regfile_fault_addr(cm_regfile_fault_addr),
+        .cm_regfile_fault_mode(cm_regfile_fault_mode),
+        .cm_regfile_fault_mask(cm_regfile_fault_mask),
+        .cm_regfile_fault_enable(cm_regfile_fault_enable),
         .cm_debug_vector(cm_debug_vector)
     );
 

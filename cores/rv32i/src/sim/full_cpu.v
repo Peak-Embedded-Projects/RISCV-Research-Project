@@ -2,6 +2,7 @@
 
 `include "rv32i_params.vh"
 `include "axi_configuration.vh"
+`include "cm_commands.vh"
 
 module full_cpu ();
 
@@ -89,7 +90,12 @@ module full_cpu ();
         .cm_regfile_addr(`REG_ADDR_WIDTH'b0),
         .cm_regfile_read_data(),
         .cm_regfile_we(1'b0),
-        .cm_regfile_write_data(`DATA_WIDTH'b0)
+        .cm_regfile_write_data(`DATA_WIDTH'b0),
+        .cm_regfile_fault_addr(`REG_ADDR_WIDTH'b0),
+        .cm_regfile_fault_mode(`FAULT_MODE_WIDTH'b0),
+        .cm_regfile_fault_mask(`DATA_WIDTH'b0),
+        .cm_regfile_fault_enable(1'b0),
+        .cm_debug_vector()
     );
 
     // task automatic display_results;
