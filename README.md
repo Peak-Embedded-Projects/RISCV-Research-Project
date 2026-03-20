@@ -107,3 +107,8 @@ uv run python build.py --runtime simulation --core rv32i --mode components/full 
 
 In case of `components` mode logs are save inside `cores/components_testbenches/log/`, while for `full` inside `platforms/simulated/log/`.
 
+# TODO
+
+- `tb_utils/constants.py` this should be dynamically imported into `cocotb` tesbenches deoending on a core we want to test (different values could apply), also it would be nice if `constants.py` was created automatically based on files inside `cores/core_1/src/include/`
+- `test_runner.py` a nicer way to resolve dependencies per components tesbench highly appreciated since right now even when we are testing fully independent `alu.v` we are compiling all the sources (I did it like that as to test things like `cm_and_core.v` I needed more than just this file and I wanted to hurry things up)
+
