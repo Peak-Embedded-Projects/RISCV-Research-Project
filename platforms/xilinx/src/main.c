@@ -3,191 +3,225 @@
 #include "xil_cache.h"
 #include "xil_printf.h"
 #include "xparameters.h"
+#include <stdbool.h>
+#include <stdlib.h>
+#include <string.h>
 #include <stdint.h>
 #include <xil_io.h>
 
 #define BRAM_BASE_ADDR XPAR_XBRAM_0_BASEADDR
 #define CORE_CTRL_BASE_ADDR XPAR_RISCV_MOD_NAME_BASEADDR
 
-#define BOOT_ADDR BRAM_BASE_ADDR
-#define DATA_ADDR BRAM_BASE_ADDR + 0x1000
+#define UART_LINE_MAX 160
+#define MODE_MAX 3u
 
-// -----------------------------------------------------------------------------
-// PROGRAM DATA
-// (sample program to test basic functionality of the core)
-// -----------------------------------------------------------------------------
-uint32_t program[] = {
-    0x0AB00293, // 0: addi x5, x0, 171   (x5 = 0xAB)
-    0x0CD00313, // 1: addi x6, x0, 205   (x6 = 0xCD)
-    0x0EF00393, // 2: addi x7, x0, 239   (x7 = 0xEF)
-    0x40001537, // 3: li x10, 0x40001000 (Memory out base addr)
-    0x00550023, // 4: sb x5, 0(x10)      (Mem[0] = 0xAB)
-    0x006500A3, // 5: sb x6, 1(x10)      (Mem[1] = 0xCD)
-    0x005502A3, // 6: sb x5, 5(x10)      (Mem[5] = 0xAB)
-    0x00750423, // 7: sb x7, 8(x10)      (Mem[8] = 0xEF)
-    0x00752623, // 8: sw x7, 12(x10)     (Mem[12] = 0x000000EF)
-    0x0000006F  // 9: j 0                (Loop forever)
-};
+static void uart_readline(char *buf, uint32_t max_len) {
+  uint32_t i = 0;
 
-
-void check_reg(uint8_t reg_idx, uint32_t expected) {
-  uint32_t actual = cm_regfile_read(reg_idx);
-  if (actual == expected) {
-    xil_printf("[PASS] Reg x%d = 0x%08X\n", reg_idx, actual);
-  } else {
-    xil_printf("[FAIL] Reg x%d. Exp: 0x%08X, Got: 0x%08X\n", reg_idx, expected,
-               actual);
+  while (i < (max_len - 1u)) {
+    char c = inbyte();
+    if (c == '\r' || c == '\n') {
+      break;
+    }
+    buf[i++] = c;
   }
+
+  buf[i] = '\0';
 }
 
-void check_pc(uint32_t expected) {
-  // uint32_t dbg_vector = cm_debug_vector_read();
-  // xil_printf("dbg_vector = 0x%08X\n", dbg_vector);
-
-  uint32_t actual = cm_pc_read();
-  if (actual == expected) {
-    xil_printf("[PASS] PC = 0x%08X\n", actual);
-  } else {
-    xil_printf("[FAIL] PC. Exp: 0x%08X, Got: 0x%08X\n", expected,
-               actual);
+static bool parse_u32(const char *token, uint32_t *out) {
+  char *endptr = NULL;
+  unsigned long parsed = strtoul(token, &endptr, 0);
+  if (token[0] == '\0' || endptr == token || *endptr != '\0') {
+    return false;
   }
+  *out = (uint32_t)parsed;
+  return true;
 }
 
-void check_mem_byte(uint32_t byte_addr, uint8_t expected) {
-  uint32_t word_addr = byte_addr & 0xFFFFFFFC; // Align to 4 bytes
-  uint32_t word_val = Xil_In32(word_addr);
-
-  uint32_t byte_offset = byte_addr & 0x3;
-  uint8_t actual = (word_val >> (byte_offset * 8)) & 0xFF;
-
-  if (actual == expected) {
-    xil_printf("[PASS] Mem[0x%02X] = 0x%02X\n", byte_addr, actual);
-  } else {
-    xil_printf("[FAIL] Mem[0x%02X]. Exp: 0x%02X, Got: 0x%02X (Word: 0x%08X)\n",
-               byte_addr, expected, actual, word_val);
+static uint32_t apply_fault_mode(uint32_t original, uint32_t mode,
+                                 uint32_t mask) {
+  if (mode == CM_FAULT_MODE_OVERWRITE) {
+    return mask;
   }
+  if (mode == CM_FAULT_MODE_XOR_MASK) {
+    return original ^ mask;
+  }
+  if (mode == CM_FAULT_MODE_OR_MASK) {
+    return original | mask;
+  }
+  return original & ~mask;
 }
 
-void check_mem_word(uint32_t word_addr, uint32_t expected) {
-  uint32_t actual = Xil_In32(word_addr);
-  if (actual == expected) {
-    xil_printf("[PASS] Mem[0x%02X] = 0x%08X\n", word_addr, actual);
-  } else {
-    xil_printf("[FAIL] Mem[0x%02X]. Exp: 0x%08X, Got: 0x%08X\n", word_addr,
-               expected, actual);
-  }
+static void print_help(void) {
+  xil_printf("OK COMMANDS PING HELP START STOP STEP RESET GET_PC SET_PC ");
+  xil_printf("GET_REG READ_WORD WRITE_WORD FAULT_REG FAULT_MEM\n");
 }
 
-int main() {
+int main(void) {
+  char line[UART_LINE_MAX];
+
   init_platform();
 
-  xil_printf("\n--- RISC-V Core Verification Start ---\n");
-
-  xil_printf("Reseting Core...\n");
   cm_core_stop();
-  cm_pc_set(BOOT_ADDR);
+  cm_pc_set(BRAM_BASE_ADDR);
 
-  xil_printf("Loading Program to BRAM @ offset 0x%X...\n", BOOT_ADDR);
-  for (uint32_t i = 0; i < (sizeof(program) / sizeof(program[0])); i++) {
-    Xil_Out32(BOOT_ADDR + (i * 4), program[i]);
+  xil_printf("READY UART_BRIDGE BRAM=0x%08X CTRL=0x%08X\n", BRAM_BASE_ADDR,
+             CORE_CTRL_BASE_ADDR);
+
+  while (1) {
+    char *cmd = NULL;
+
+    uart_readline(line, UART_LINE_MAX);
+    cmd = strtok(line, " \t");
+
+    if (cmd == NULL) {
+      continue;
+    }
+
+    if (strcmp(cmd, "PING") == 0) {
+      xil_printf("OK PONG\n");
+      continue;
+    }
+
+    if (strcmp(cmd, "HELP") == 0) {
+      print_help();
+      continue;
+    }
+
+    if (strcmp(cmd, "START") == 0) {
+      cm_core_start();
+      xil_printf("OK STARTED\n");
+      continue;
+    }
+
+    if (strcmp(cmd, "STOP") == 0) {
+      cm_core_stop();
+      xil_printf("OK STOPPED\n");
+      continue;
+    }
+
+    if (strcmp(cmd, "STEP") == 0) {
+      cm_single_step_core();
+      xil_printf("OK STEPPED\n");
+      continue;
+    }
+
+    if (strcmp(cmd, "RESET") == 0) {
+      uint32_t boot_addr = BRAM_BASE_ADDR;
+      char *boot_token = strtok(NULL, " \t");
+      if (boot_token != NULL && !parse_u32(boot_token, &boot_addr)) {
+        xil_printf("ERR BAD_BOOT_ADDR\n");
+        continue;
+      }
+      cm_core_stop();
+      cm_pc_set(boot_addr);
+      xil_printf("OK RESET PC=0x%08X\n", boot_addr);
+      continue;
+    }
+
+    if (strcmp(cmd, "GET_PC") == 0) {
+      xil_printf("OK 0x%08X\n", cm_pc_read());
+      continue;
+    }
+
+    if (strcmp(cmd, "SET_PC") == 0) {
+      uint32_t pc_val = 0;
+      char *pc_token = strtok(NULL, " \t");
+      if (pc_token == NULL || !parse_u32(pc_token, &pc_val)) {
+        xil_printf("ERR BAD_PC\n");
+        continue;
+      }
+      cm_pc_set(pc_val);
+      xil_printf("OK PC=0x%08X\n", pc_val);
+      continue;
+    }
+
+    if (strcmp(cmd, "GET_REG") == 0) {
+      uint32_t reg_idx = 0;
+      char *reg_token = strtok(NULL, " \t");
+      if (reg_token == NULL || !parse_u32(reg_token, &reg_idx) || reg_idx > 31u) {
+        xil_printf("ERR BAD_REG\n");
+        continue;
+      }
+      xil_printf("OK 0x%08X\n", cm_regfile_read((uint8_t)reg_idx));
+      continue;
+    }
+
+    if (strcmp(cmd, "READ_WORD") == 0) {
+      uint32_t addr = 0;
+      char *addr_token = strtok(NULL, " \t");
+      if (addr_token == NULL || !parse_u32(addr_token, &addr)) {
+        xil_printf("ERR BAD_ADDR\n");
+        continue;
+      }
+      xil_printf("OK 0x%08X\n", Xil_In32(addr));
+      continue;
+    }
+
+    if (strcmp(cmd, "WRITE_WORD") == 0) {
+      uint32_t addr = 0;
+      uint32_t value = 0;
+      char *addr_token = strtok(NULL, " \t");
+      char *value_token = strtok(NULL, " \t");
+      if (addr_token == NULL || value_token == NULL ||
+          !parse_u32(addr_token, &addr) || !parse_u32(value_token, &value)) {
+        xil_printf("ERR BAD_WRITE\n");
+        continue;
+      }
+      Xil_Out32(addr, value);
+      Xil_DCacheFlushRange(addr, 4u);
+      xil_printf("OK WROTE 0x%08X\n", value);
+      continue;
+    }
+
+    if (strcmp(cmd, "FAULT_REG") == 0) {
+      uint32_t reg_idx = 0;
+      uint32_t mode = 0;
+      uint32_t mask = 0;
+      char *reg_token = strtok(NULL, " \t");
+      char *mode_token = strtok(NULL, " \t");
+      char *mask_token = strtok(NULL, " \t");
+
+      if (reg_token == NULL || mode_token == NULL || mask_token == NULL ||
+          !parse_u32(reg_token, &reg_idx) || !parse_u32(mode_token, &mode) ||
+          !parse_u32(mask_token, &mask) || reg_idx > 31u || mode > MODE_MAX) {
+        xil_printf("ERR BAD_FAULT_REG\n");
+        continue;
+      }
+
+      cm_regfile_fault_inject((uint8_t)reg_idx, mask, (cm_fault_mode_t)mode);
+      xil_printf("OK FAULT_REG x%u\n", reg_idx);
+      continue;
+    }
+
+    if (strcmp(cmd, "FAULT_MEM") == 0) {
+      uint32_t addr = 0;
+      uint32_t mode = 0;
+      uint32_t mask = 0;
+      uint32_t current = 0;
+      uint32_t updated = 0;
+      char *addr_token = strtok(NULL, " \t");
+      char *mode_token = strtok(NULL, " \t");
+      char *mask_token = strtok(NULL, " \t");
+
+      if (addr_token == NULL || mode_token == NULL || mask_token == NULL ||
+          !parse_u32(addr_token, &addr) || !parse_u32(mode_token, &mode) ||
+          !parse_u32(mask_token, &mask) || mode > MODE_MAX || (addr & 0x3u) != 0u) {
+        xil_printf("ERR BAD_FAULT_MEM\n");
+        continue;
+      }
+
+      current = Xil_In32(addr);
+      updated = apply_fault_mode(current, mode, mask);
+      Xil_Out32(addr, updated);
+      Xil_DCacheFlushRange(addr, 4u);
+      xil_printf("OK FAULT_MEM 0x%08X\n", updated);
+      continue;
+    }
+
+    xil_printf("ERR UNKNOWN_CMD\n");
   }
-
-
-  for (uint32_t i = 0; i < (sizeof(program) / sizeof(program[0])); i++) {
-    check_mem_word(BOOT_ADDR + (i * 4), program[i]);
-  }
-
-
-  check_pc(BOOT_ADDR + 0 * 4);
-
-  // As an alternative to single stepping, just run core in endless mode
-  // cm_core_start();
-  // usleep(5000);
-
-  // ------------------------------------------------------------
-  // addi x5, x0, 0xAB
-  // ------------------------------------------------------------
-  xil_printf("\nSingle Step: Execute 'addi x5, x0, 0xAB'\n");
-  cm_single_step_core();
-  check_pc(BOOT_ADDR + 1 * 4);
-  check_reg(5, 0xAB);
-
-  // ------------------------------------------------------------
-  // addi x6, x0, 0xCD
-  // ------------------------------------------------------------
-  xil_printf("\nSingle Step: Execute 'addi x6, x0, 0xCD'\n");
-  cm_single_step_core();
-  check_pc(BOOT_ADDR + 2 * 4);
-  check_reg(6, 0xCD);
-
-  // ------------------------------------------------------------
-  // addi x7, x0, 0xEF
-  // ------------------------------------------------------------
-  xil_printf("\nSingle Step: Execute 'addi x7, x0, 0xEF'\n");
-  cm_single_step_core();
-  check_pc(BOOT_ADDR + 3 * 4);
-  check_reg(7, 0xEF);
-
-  // ------------------------------------------------------------
-  // li x10, 0x40001000 (Memory out base addr)
-  // ------------------------------------------------------------
-  xil_printf("\nSingle Step: Execute 'li x10, 0x40001000'\n");
-  cm_single_step_core();
-  check_pc(BOOT_ADDR + 4 * 4);
-  check_reg(10, DATA_ADDR);
-
-  // ------------------------------------------------------------
-  // sb x5, 0(x10) -> Write 0xAB to DATA_ADDR + 0
-  // ------------------------------------------------------------
-  xil_printf("\nSingle Step: Execute 'sb x5, 0(x10)'\n");
-  cm_single_step_core();
-  check_pc(BOOT_ADDR + 5 * 4);
-  check_mem_byte(DATA_ADDR + 0, 0xAB);
-
-  // ------------------------------------------------------------
-  // sb x6, 1(x10) -> Write 0xCD to DATA_ADDR + 1
-  // ------------------------------------------------------------
-  xil_printf("\nSingle Step: Execute 'sb x6, 1(x10)'\n");
-  cm_single_step_core();
-  check_pc(BOOT_ADDR + 6 * 4);
-  check_mem_byte(DATA_ADDR + 1, 0xCD);
-
-  // ------------------------------------------------------------
-  // sb x5, 5(x10) -> Write 0xAB to DATA_ADDR + 5
-  // DATA_ADDR + 5 is byte index 1 of the word at DATA_ADDR + 4
-  // ------------------------------------------------------------
-  xil_printf("\nSingle Step: Execute 'sb x5, 5(x10)'\n");
-  cm_single_step_core();
-  check_pc(BOOT_ADDR + 7 * 4);
-  check_mem_byte(DATA_ADDR + 5, 0xAB);
-
-  // ------------------------------------------------------------
-  // sb x7, 8(x10) -> Write 0xEF to DATA_ADDR + 8
-  // ------------------------------------------------------------
-  xil_printf("\nSingle Step: Execute 'sb x7, 8(x10)'\n");
-  cm_single_step_core();
-  check_pc(BOOT_ADDR + 8 * 4);
-  check_mem_byte(DATA_ADDR + 8, 0xEF);
-
-  // ------------------------------------------------------------
-  // sw x7, 12(x10) -> Write 0x000000EF to DATA_ADDR + 12
-  // ------------------------------------------------------------
-  xil_printf("\nSingle Step: Execute 'sw x7, 12(x10)'\n");
-  cm_single_step_core();
-  check_pc(BOOT_ADDR + 9 * 4);
-  check_mem_word(DATA_ADDR + 12, 0x000000EF);
-
-  xil_printf("\nChecking Results:\n");
-  check_reg(5, 0xAB);
-  check_reg(6, 0xCD);
-  check_reg(7, 0xEF);
-  check_mem_byte(DATA_ADDR + 0, 0xAB);
-  check_mem_byte(DATA_ADDR + 1, 0xCD);
-  check_mem_byte(DATA_ADDR + 5, 0xAB);
-  check_mem_byte(DATA_ADDR + 8, 0xEF);
-  check_mem_word(DATA_ADDR + 12, 0x000000EF);
-
-  xil_printf("\n--- Verification Complete ---\n");
 
   cleanup_platform();
   return 0;

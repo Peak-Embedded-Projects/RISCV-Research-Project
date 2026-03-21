@@ -1,0 +1,13 @@
+[project]
+name = "masterpc"
+version = "0.1.0"
+description = "Master PC application for the fault injection framework"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+	"pyserial>=3.5",
+]
+
+[build-system]
+requires = ["uv_build>=0.10.10,<0.11.0"]
+build-backend = "uv_build"

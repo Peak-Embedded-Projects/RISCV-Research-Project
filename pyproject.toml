@@ -2,4 +2,13 @@
 name = "riscv-build"
 version = "0.1.0"
 requires-python = ">=3.13"
-dependencies = ["click"]
+dependencies = ["click", "masterpc"]
+
+
+[tool.uv.workspace]
+members = [
+    "masterpc",
+]
+
+[tool.uv.sources]
+masterpc = { workspace = true }
