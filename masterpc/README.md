@@ -15,6 +15,13 @@ uv run python -m masterpc
 Optional flags:
 
 - `--port /dev/ttyUSB0`: serial device (default `/dev/ttyUSB0`)
-- `--boot-addr 0x40000000`: upload base address (default `0x40000000`)
+- `--timeout 1.0`: UART read timeout in seconds
+- `--verbose`: print UART TX/RX lines
+
+## UART interface
+
+The command protocol between Master PC and PS firmware is documented in:
+
+- [`docs/uart_protocol.md`](../docs/uart_protocol.md)
 
 For architecture, prerequisites, and build flow of the full framework, see the root [README](../README.md).
