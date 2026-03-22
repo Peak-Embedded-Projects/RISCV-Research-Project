@@ -78,3 +78,24 @@ def run_demo_program_test(client: WorkerInterface) -> None:
 
     client.step()
     _expect_eq("Mem[DATA+12]", client.read_word(data_addr + 0x0C), 0x000000EF)
+
+
+def run_fault_injection_test(client: WorkerInterface) -> None:
+    """Basic end-to-end test for FAULT_REG and FAULT_MEM commands."""
+    boot_addr = 0x40000000
+    data_addr = 0x40001000
+    probe_addr = data_addr + 0x40
+
+    upload_words(client, boot_addr, DEMO_PROGRAM, verify=False)
+    client.reset(boot_addr)
+
+    # Execute one instruction so x5 holds a known value (0xAB).
+    client.step()
+    _expect_eq("x5 before fault", client.get_reg(5), 0x000000AB)
+
+    client.fault_reg(5, 1, 0x0000000F)  # XOR lower nibble.
+    _expect_eq("x5 after FAULT_REG XOR", client.get_reg(5), 0x000000A4)
+
+    client.write_word(probe_addr, 0x12345678)
+    client.fault_mem(probe_addr, 2, 0x0000FF00)  # OR mask into byte 1.
+    _expect_eq("mem after FAULT_MEM OR", client.read_word(probe_addr), 0x1234FF78)
