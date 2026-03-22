@@ -40,7 +40,8 @@ def _expect_eq(label: str, actual: int, expected: int) -> None:
         raise RuntimeError(f"{label}: expected 0x{expected:08X}, got 0x{actual:08X}")
 
 
-def run_demo_program_test(client: WorkerInterface, boot_addr: int) -> None:
+def run_demo_program_test(client: WorkerInterface) -> None:
+    boot_addr = 0x40000000
     data_addr = 0x40001000
     upload_words(client, boot_addr, DEMO_PROGRAM, verify=True)
     client.reset(boot_addr)

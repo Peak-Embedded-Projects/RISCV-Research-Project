@@ -13,11 +13,11 @@ def parse_int(value: str) -> int:
 @dataclass
 class WorkerInterface:
     port: str
-    baudrate: int = 115200
     timeout_s: float = 1.0
+    verbose: bool = False
 
     def __post_init__(self) -> None:
-        self.ser = serial.Serial(self.port, self.baudrate, timeout=self.timeout_s)
+        self.ser = serial.Serial(self.port, 115200, timeout=self.timeout_s)
         self.ser.reset_input_buffer()
         self.ser.reset_output_buffer()
 
@@ -32,6 +32,8 @@ class WorkerInterface:
         self.close()
 
     def send(self, command: str) -> str:
+        if self.verbose:
+            print(f">>> {command}")
         self.ser.write((command + "\n").encode("ascii"))
         self.ser.flush()
 
@@ -39,6 +41,8 @@ class WorkerInterface:
             raw = self.ser.readline()
             if not raw:
                 raise TimeoutError(f"No response for command: {command}")
+            if self.verbose:
+                print(f"<<< {raw!r}")
 
             line = raw.decode("ascii", errors="replace").strip()
             if not line:
