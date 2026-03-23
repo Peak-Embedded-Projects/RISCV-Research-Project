@@ -44,13 +44,15 @@ def read_sim_config() -> tuple:
     )
 
 
+TARGET_IP_CORE, TARGET_HDL, TEST_MODE, TESTS_TO_RUN = read_sim_config()
+
+
 def discover_tests() -> List[dict]:
     """
     Discover tests based on the mode.
     """
 
     configs = []
-    TARGET_IP_CORE, TARGET_HDL, TEST_MODE, tests_to_do = read_sim_config()
 
     # Assumes that *.v, *.vhd, *.sv files are inside hdl/
     # while (System)Verilog headers and VHDL packages are inside include/
@@ -63,7 +65,7 @@ def discover_tests() -> List[dict]:
     # include_files = list(core_include_path.rglob(f"*{file_extension[1]}"))
     sources = list(core_source_path.rglob(f"*{file_extension[0]}"))
     if TEST_MODE == "components":
-        for test in tests_to_do:
+        for test in TESTS_TO_RUN:
             hw_name = test.replace("test_", "")
             # source = core_source_path / (hw_name + file_extension[0])
             # TODO: VHDL support needs to be well-thought in terms of
@@ -111,8 +113,6 @@ def test_generic_runner(config: dict) -> None:
     Main tests runner using pytest and cocotb
     """
 
-    TARGET_IP_CORE, TARGET_HDL, TEST_MODE, _ = read_sim_config()
-
     test_id = config["id"]
     runner = get_runner(config["sim"])
 
@@ -146,5 +146,5 @@ def test_generic_runner(config: dict) -> None:
         waves=config["waves"],
         build_dir=build_dir,
         log_file=test_log_file,
-        extra_env={"TARGET_CORE": TARGET_IP_CORE},
+        extra_env={"TARGET_CORE": TARGET_IP_CORE, "TEST_TO_RUN": test_id},
     )
