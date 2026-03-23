@@ -56,12 +56,6 @@ module cm_and_core_tb ();
     wire [  `AXI_DATA_WIDTH-1:0] M_AXI_RDATA;
     wire [  `AXI_RESP_WIDTH-1:0] M_AXI_RRESP;
 
-    // connections between control module and RISC-V core
-    wire [  `REG_ADDR_WIDTH-1:0] cm_regfile_addr;
-    wire [      `DATA_WIDTH-1:0] cm_regfile_read_data;
-    wire                         cm_regfile_write_enable;
-    wire [      `DATA_WIDTH-1:0] cm_regfile_write_data;
-
     // Mocked Memory
     axi_memory_mock u_mem (
         .CLK (CLK),
@@ -169,11 +163,16 @@ module cm_and_core_tb ();
         $readmemh({data_folder, "/program.hex"}, u_mem.i_data);
         #(CLK_PERIOD * 10);
 
+        $display("[%0t] Read Debug Vector -> Expect 0x00001400", $time); // FPGA: 00001400
+        axi_read({`SUB_SEL_CTRL, `CTRL_REG_DBG_VECTOR}, 32'h00001400, `AXI_RESP_OKAY);
+
         $display("[%0t] Read Reg 5 -> Expect 0x00000000", $time);
         axi_read({`SUB_SEL_REGFILE, 1'b0, 5'd5, 2'b00}, 32'h00000000, `AXI_RESP_OKAY);
         $display("[%0t] Single Step Core (lw x5, 0xAB)", $time);
         axi_write({`SUB_SEL_CTRL, `CTRL_REG_STEP}, 32'h00000001, 4'b1111, `AXI_RESP_OKAY);
         #(CLK_PERIOD * 10);  // give core time to execute
+        $display("[%0t] Read Debug Vector -> Expect 0x00001804", $time); // FPGA: 10001400
+        axi_read({`SUB_SEL_CTRL, `CTRL_REG_DBG_VECTOR}, 32'h00001804, `AXI_RESP_OKAY);
         $display("[%0t] Read Reg 5 -> Expect 0x000000AB", $time);
         axi_read({`SUB_SEL_REGFILE, 1'b0, 5'd5, 2'b00}, 32'h000000AB, `AXI_RESP_OKAY);
         $display("[%0t] Read Reg 6 -> Expect 0x00000000", $time);
@@ -195,6 +194,7 @@ module cm_and_core_tb ();
 
         $display("[%0t] Single Step Core (sb x5, 0(x0)", $time);
         axi_write({`SUB_SEL_CTRL, `CTRL_REG_STEP}, 32'h00000001, 4'b1111, `AXI_RESP_OKAY);
+        #(CLK_PERIOD * 10);  // give core time to execute
         $display("[%0t] Read Reg 7 -> Expect 0x00000000 since (lw x7, 0xEF) was skipped", $time);
         axi_read({`SUB_SEL_REGFILE, 1'b0, 5'd7, 2'b00}, 32'h00000000, `AXI_RESP_OKAY);
 
