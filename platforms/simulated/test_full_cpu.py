@@ -68,7 +68,6 @@ async def test_riscv_full(dut):
     )
 
     INSTR_BASE_ADDR = BOOT_ADDR
-    DATA_BASE_ADDR = 0x00000000
 
     dut._log.info("Loading initial data to mock ram...")
     for i, data_val in enumerate(init_memory):
