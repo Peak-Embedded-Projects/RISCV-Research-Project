@@ -59,3 +59,6 @@ CTRL_REG_START = 0x04
 CTRL_REG_STOP = 0x08
 CTRL_REG_STEP = 0x0C
 CTRL_REG_PC = 0x10
+
+BOOT_ADDR = 0x00000_1000  # boot address (start of instruction memory)
+TRAP_VECTOR = 0x00000_1000  # trap vector for exceptions (e.g., illegal instruction)
