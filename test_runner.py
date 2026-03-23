@@ -120,8 +120,8 @@ def test_generic_runner(config: dict) -> None:
         build_dir = COMPONENTS_TESTBENCHES_DIR / "build" / test_id
         log_dir = COMPONENTS_TESTBENCHES_DIR / "log" / test_id
     else:
-        build_dir = SIMULATED_CPU_DIR / "build"
-        log_dir = SIMULATED_CPU_DIR / "log"
+        build_dir = SIMULATED_CPU_DIR / "build" / TARGET_IP_CORE / test_id
+        log_dir = SIMULATED_CPU_DIR / "log" / TARGET_IP_CORE / test_id
 
     build_dir.mkdir(parents=True, exist_ok=True)
     log_dir.mkdir(parents=True, exist_ok=True)
