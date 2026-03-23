@@ -81,6 +81,7 @@ def discover_tests() -> List[dict]:
                 "sources": sources,
                 "waves": True,
                 "includes": [core_include_path],
+                "dir": "",  # only important for mode full
             }
             configs.append(config)
     else:
@@ -89,16 +90,21 @@ def discover_tests() -> List[dict]:
         #       for the whole core is called riscv_cpu?
         # TODO: think how to pass information about program/programs
         #       to execute
-        config = {
-            "id": "riscv_simulated",
-            "sim": SIMULATOR_MAP[TARGET_HDL],
-            "hdl_toplevel": "riscv_cpu",
-            "test_module": "platforms.simulated.test_full_cpu",
-            "sources": sources,
-            "waves": True,
-            "includes": [core_include_path],
-        }
-        configs.append(config)
+        for test in TESTS_TO_RUN:
+            program_dir = Path(test).parent.as_posix()
+            test_id = program_dir.replace("/", "_")
+
+            config = {
+                "id": test_id,
+                "sim": SIMULATOR_MAP[TARGET_HDL],
+                "hdl_toplevel": "riscv_cpu",
+                "test_module": "platforms.simulated.test_full_cpu",
+                "sources": sources,
+                "waves": True,
+                "includes": [core_include_path],
+                "dir": program_dir,
+            }
+            configs.append(config)
 
     return configs
 
@@ -120,8 +126,8 @@ def test_generic_runner(config: dict) -> None:
         build_dir = COMPONENTS_TESTBENCHES_DIR / "build" / TARGET_IP_CORE / test_id
         log_dir = COMPONENTS_TESTBENCHES_DIR / "log" / TARGET_IP_CORE / test_id
     else:
-        build_dir = SIMULATED_CPU_DIR / "build" / TARGET_IP_CORE / test_id
-        log_dir = SIMULATED_CPU_DIR / "log" / TARGET_IP_CORE / test_id
+        build_dir = SIMULATED_CPU_DIR / "build" / TARGET_IP_CORE / config["dir"]
+        log_dir = SIMULATED_CPU_DIR / "log" / TARGET_IP_CORE / config["dir"]
 
     build_dir.mkdir(parents=True, exist_ok=True)
     log_dir.mkdir(parents=True, exist_ok=True)
@@ -146,5 +152,5 @@ def test_generic_runner(config: dict) -> None:
         waves=config["waves"],
         build_dir=build_dir,
         log_file=test_log_file,
-        extra_env={"TARGET_CORE": TARGET_IP_CORE, "TEST_TO_RUN": test_id},
+        extra_env={"TARGET_CORE": TARGET_IP_CORE, "TEST_TO_RUN": config["dir"]},
     )
