@@ -117,8 +117,8 @@ def test_generic_runner(config: dict) -> None:
     runner = get_runner(config["sim"])
 
     if TEST_MODE == "components":
-        build_dir = COMPONENTS_TESTBENCHES_DIR / "build" / test_id
-        log_dir = COMPONENTS_TESTBENCHES_DIR / "log" / test_id
+        build_dir = COMPONENTS_TESTBENCHES_DIR / "build" / TARGET_IP_CORE / test_id
+        log_dir = COMPONENTS_TESTBENCHES_DIR / "log" / TARGET_IP_CORE / test_id
     else:
         build_dir = SIMULATED_CPU_DIR / "build" / TARGET_IP_CORE / test_id
         log_dir = SIMULATED_CPU_DIR / "log" / TARGET_IP_CORE / test_id
