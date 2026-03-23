@@ -6,6 +6,9 @@ $ uv run python build.py
 or (just an example)
 $ uv run python build.py --runtime hardware --vendor xilinx --board "Zybo Z7-20" \
                          --core rv32i --hdl verilog
+$ uv run python build.py --runtime simulation --mode components --which all/test_1/"test1, test_2, ..."\
+                         --core rv32i --hdl verilog
+
 
 REMARKS: it currently supports only Xilinx hardware.
 """
@@ -13,6 +16,7 @@ REMARKS: it currently supports only Xilinx hardware.
 import json
 import logging
 from enum import Enum
+import subprocess
 from pathlib import Path
 from typing import Optional
 
@@ -36,6 +40,11 @@ class runtime_type(Enum):
     SIMULATION = "SIMULATION"
 
 
+class simulation_mode_type(Enum):
+    COMPONENTS = "components"
+    FULL = "full"
+
+
 def load_vendors_and_boards() -> dict:
     """
     Load vendors/boards configuration from json
@@ -53,6 +62,25 @@ def load_vendors_and_boards() -> dict:
             exit(1)
 
 
+def detect_tests(mode: str) -> list:
+    """
+    Find available tests depending on the mode type
+    """
+
+    pattern = None
+    if mode == simulation_mode_type.COMPONENTS.value:
+        testbenches_dir = CORES_ROOT / "components_testbenches"
+        pattern = "test_*.py"
+    else:
+        testbenches_dir = CORES_ROOT / "test_programs"
+        pattern = "*.S"
+    if not testbenches_dir.exists():
+        logging.error(f"{testbenches_dir.name} doesn't exist")
+        exit(1)
+
+    return [t for t in testbenches_dir.rglob(pattern)]
+
+
 def get_riscv_cores() -> dict:
     """
     Return RISC-V IP Cores from cores/ directory
@@ -62,7 +90,22 @@ def get_riscv_cores() -> dict:
         logging.error(f"{CORES_ROOT.name} doesn't exist")
         exit(1)
 
-    return {p.name: p for p in CORES_ROOT.iterdir() if p.is_dir()}
+    return {
+        p.name: p
+        for p in CORES_ROOT.iterdir()
+        if p.is_dir() and p.name not in ["test_programs", "components_testbenches"]
+    }
+
+
+def runtime_simulation_handler() -> None:
+    """
+    Execute tests calling pytest
+    """
+
+    cmd = ["pytest", "test_runner.py"]
+
+    logging.info("Running tests ...")
+    subprocess.run(cmd)
 
 
 # TODO: move xilinx implementation to a separate function, this function should
@@ -129,15 +172,27 @@ def runtime_hardware_handler(
     type=click.Choice(["verilog", "vhdl", "systemverilog"], case_sensitive=False),
     help="HDL of IP Core",
 )
+@click.option(
+    "--mode",
+    type=click.Choice(["components", "full"], case_sensitive=False),
+    help="Specify whether to verify components of RISC-V core or an entire CPU",
+)
+@click.option(
+    "--which",
+    type=str,
+    help="Specify whether to test ALL or selected tests (comma-separated)",
+)
 def launch(
     runtime: Optional[str],
     vendor: Optional[str],
     board: Optional[str],
     core: Optional[str],
     hdl: Optional[str],
-) -> None:
+    mode: Optional[str],
+    which: Optional[str],
+) -> None:  # TODO: add cleaning !!!
     """
-    Interactive HDL Build Configuration tool
+    Interactive HDL Build and Test Configuration tool
     """
 
     if not runtime:
@@ -189,7 +244,57 @@ def launch(
         board_params = available_boards[board_match]
 
     elif runtime == runtime_type.SIMULATION.value:
-        pass
+        if not mode:
+            mode = click.prompt(
+                "Select mode",
+                type=click.Choice(
+                    [e.value for e in simulation_mode_type], case_sensitive=False
+                ),
+                default="components",
+            )
+        mode = mode.lower()
+        available_tests_paths = detect_tests(mode)
+
+        test_mapping = {}
+        if mode == "components":
+            for p in available_tests_paths:
+                display_name = p.stem
+                test_mapping[display_name] = p.stem
+        else:
+            testbenches_dir = CORES_ROOT / "test_programs"
+            for p in available_tests_paths:
+                display_name = f"{p.parent.relative_to(testbenches_dir)}/"
+                test_mapping[display_name] = str(p.relative_to(testbenches_dir))
+
+        test_mapping["all"] = "all"
+
+        if not which:
+            logging.info(f"For mode {mode} detected following tests:")
+            for t in test_mapping.keys():
+                if t != "all":
+                    print(t)
+            which = click.prompt("Select test/tests (comma-separated)", type=str)
+
+        which_list = [w.strip() for w in which.split(",")]
+        final_tests = []
+        for w in which_list:
+            match = next(
+                (t for t in test_mapping.keys() if t.lower() == w.lower()), None
+            )
+
+            if not match:
+                logging.error(
+                    f"Test: '{w}' not found. Available tests: {list(test_mapping.keys())}"
+                )
+                exit(1)
+
+            if match.lower() == "all":
+                final_tests = [val for key, val in test_mapping.items() if key != "all"]
+                break
+            else:
+                final_tests.append(test_mapping[match])
+
+        which = final_tests
     else:
         logging.error(
             f"{runtime} not supported, choose one of {[e.value for e in runtime_type]}"
@@ -231,6 +336,9 @@ def launch(
     if runtime == "HARDWARE":
         click.echo(f"Vendor:  {vendor}")
         click.echo(f"Board:   {board}")
+    else:
+        click.echo(f"Mode:   {mode}")
+        click.echo(f"Tests:   {which}")
     click.echo(f"Core:    {core}")
     click.echo(f"HDL:    {hdl}")
 
@@ -242,7 +350,12 @@ def launch(
         )
         runtime_hardware_handler(vendor=vendor, hw=hw, core=selected_core_path, hdl=hdl)
     else:
-        pass
+        sim_config = {"CORE": core, "HDL": hdl, "MODE": mode, "TESTS_TO_RUN": which}
+        config_path = Path(".sim_run_config.json")
+        with open(config_path, "w") as f:
+            json.dump(sim_config, f, indent=4)
+
+        runtime_simulation_handler()
 
 
 if __name__ == "__main__":

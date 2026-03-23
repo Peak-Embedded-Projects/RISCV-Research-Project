@@ -85,6 +85,7 @@ clockInfo.txt
 
 # others
 unisims
+.sim_run_config.json
 
 # C-files
 *.elf
