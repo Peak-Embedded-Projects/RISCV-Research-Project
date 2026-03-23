@@ -34,5 +34,6 @@
 #define CTRL_REG_STOP 0x08
 #define CTRL_REG_STEP 0x0C
 #define CTRL_REG_PC 0x10
+#define CTRL_REG_DBG_VECTOR 0x1C
 
 #endif
