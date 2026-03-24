@@ -50,7 +50,7 @@ from cocotbext.axi import AxiLiteBus, AxiLiteMaster
 
 from tb_utils.constants import *
 from tb_utils.resets import reset_active_low
-from tb_utils.memory import get_reg_addr
+from tb_utils.memory import get_reg_addr, get_fault_addr
 
 
 async def regfile_write_monitor(dut, writes_list):
@@ -80,6 +80,23 @@ async def pc_write_monitor(dut, writes_list):
             writes_list.append(int(dut.pc_write_data.value))
 
 
+async def regfile_fault_monitor(dut, writes_list):
+    """
+    Catches pulses on regfile_fault_enable
+    """
+
+    while True:
+        await RisingEdge(dut.CLK)
+        if dut.regfile_fault_enable.value == 1:
+            writes_list.append(
+                {
+                    "addr": int(dut.regfile_fault_addr.value),
+                    "mode": int(dut.regfile_fault_mode.value),
+                    "mask": int(dut.regfile_fault_mask.value),
+                }
+            )
+
+
 @cocotb.test()
 async def test_soc_control(dut):
     cocotb.start_soon(Clock(dut.CLK, 10, unit="ns").start())
@@ -93,8 +110,10 @@ async def test_soc_control(dut):
 
     reg_writes = []
     pc_writes = []
+    fault_writes = []
     cocotb.start_soon(regfile_write_monitor(dut, reg_writes))
     cocotb.start_soon(pc_write_monitor(dut, pc_writes))
+    cocotb.start_soon(regfile_fault_monitor(dut, fault_writes))
 
     dut.pc_read_data.value = 0
     dut.regfile_read_data.value = 0
@@ -145,5 +164,25 @@ async def test_soc_control(dut):
     dut.pc_read_data.value = 0x00002048  # Mock the PC returning a value
     result = await axim.read_dword(SUB_SEL_CTRL | CTRL_REG_PC)
     assert result == 0x00002048, "Failed to read PC back through AXI!"
+
+    dut._log.info("Test 5: Fault Injection OVERWRITE to Register 3")
+
+    await axim.write_dword(get_fault_addr(FAULT_MODE_OVERWRITE, 3), 0x13579BDF)
+    assert len(fault_writes) == 1, "DUT did not pulse regfile_fault_enable!"
+    assert fault_writes[0]["addr"] == 3, "Wrong fault register address outputted!"
+    assert fault_writes[0]["mode"] == FAULT_MODE_OVERWRITE, (
+        "Wrong fault mode outputted for overwrite!"
+    )
+    assert fault_writes[0]["mask"] == 0x13579BDF, "Wrong fault mask outputted!"
+
+    dut._log.info("Test 6: Fault Injection XOR mask to Register 7")
+
+    await axim.write_dword(get_fault_addr(FAULT_MODE_XOR_MASK, 7), 0x00FF00FF)
+    assert len(fault_writes) == 2, "Second fault injection was not observed!"
+    assert fault_writes[1]["addr"] == 7, "Wrong fault register address for XOR!"
+    assert fault_writes[1]["mode"] == FAULT_MODE_XOR_MASK, (
+        "Wrong fault mode outputted for XOR!"
+    )
+    assert fault_writes[1]["mask"] == 0x00FF00FF, "Wrong fault mask outputted for XOR!"
 
     dut._log.info("All SOC Control tests passed!")
