@@ -101,5 +101,46 @@ vitis -w platforms/xilinx/build/vitis_ws
 
 ### Simulation
 
-Simulation is core-specific for now. See [cores/rv32i/README.md](cores/rv32i/README.md) for current simulation and test program instructions.
+#### Simulation
+All simulations are written in language-agnostic style using simulation toolchain that doesn't rely on any vendor-specific proprietary software. Specifying HDL allows to select the right simulator. Script `build.py` calls `test_runner.py` which under the hood uses combination of pytest and cocotb to execute all testbenches.
+
+Simulation mode can be selected by running:
+```bash
+uv run python build.py --runtime simulation --core rv32i --hdl verilog --mode [components/full] --which [all/component_to_test/program_to_run]
+```
+
+Simulation can be performed on any cores available in `cores/`. By specyfying `--hdl` flag a dedicated simulator will be used:
+
+- **verilog**: [icarus](https://github.com/steveicarus/iverilog)
+- **vhdl**: [ghdl](https://github.com/ghdl/ghdl)
+- **systemverilog**: [verilator](https://github.com/verilator/verilator) ???
+
+The next flag `--mode` specifies whether testbenches targeting singular core components should be tested or an entire CPU.
+
+- `--mode components`:
+    
+    - `--which all`: runs all testbenches from `cores/components_testbenches/`
+
+    - `--which [name of the component]`: runs specified component from `cores/components_testbenches/`
+- `--mode full`
+
+    - `--which all`: runs all RISC-V assembly programs from `cores/test_programs/` (TODO: add programs there)
+    - `--which [name of the program]`: runs selected program from `cores/test_programs/`
+
+Examples:
+
+- single component/program:
+```bash
+uv run python build.py --runtime simulation --core rv32i --mode components/full --which test_1 --hdl verilog    
+```
+
+- multiple components/programs:
+```bash
+uv run python build.py --runtime simulation --core rv32i --mode components/full --which "test_1, test_2, ..." --hdl verilog    
+```
+
+In case of `components` mode logs are save inside `cores/components_testbenches/log/`, while for `full` inside `platforms/simulated/log/`.
+
+# TODO
+- `test_runner.py` a nicer way to resolve dependencies per components tesbench highly appreciated since right now even when we are testing fully independent `alu.v` we are compiling all the sources (I did it like that as to test things like `cm_and_core.v` I needed more than just this file and I wanted to hurry things up)
 

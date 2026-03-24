@@ -43,7 +43,9 @@ xvlog.*
 *.debug
 *.ip_user_files
 *.xsa
+
 __pycache__/
+.pytest_cache/
 
 # for ESP32
 src/esp/build/
@@ -83,6 +85,7 @@ clockInfo.txt
 
 # others
 unisims
+.sim_run_config.json
 
 # C-files
 *.elf
