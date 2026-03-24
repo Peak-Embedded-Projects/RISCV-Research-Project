@@ -21,7 +21,7 @@ The proposed architecture uses [Digilent Zybo Z7-20](https://digilent.com/shop/z
 
 The idea is to use two workers (Zybo boards): one with a mitigated core and one without mitigation. Both workers communicate with the Master PC (labeled as the Fault Injection Orchestrator in the diagram below), which sends instruction workloads and fault injection commands.
 
-![High Level Architecture](docs/high_level_arch.drawio.png)
+![High Level Architecture](docs/fault_injection_scheme.drawio.svg)
 
 The outputs from the cores are collected and compared to determine whether mitigation worked and what the time-performance impact of the mitigated CPU is.
 
@@ -38,7 +38,7 @@ The detailed architecture of a single worker is shown below. The Master PC sends
 
 All communication between Programmable Logic (PL) and the Processing System (PS, ARM) uses the [AMBA AXI](https://www.amd.com/en/products/adaptive-socs-and-fpgas/intellectual-property/axi.html) protocol.
 
-![Single Worker Architecture](docs/single_worker_high_level_arch.drawio.png)
+![Single Worker Architecture](docs/single_worker_high_level_arch.drawio.svg)
 
 The component labeled as the RISC-V soft core can be any core that synthesizes on supported hardware such as the Zybo Z7-20. The main advantage of this approach is that it can mimic a debugger-like workflow without implementing full debug mode in the core (greatly simplifying integration) while still allowing SEU injection.
 

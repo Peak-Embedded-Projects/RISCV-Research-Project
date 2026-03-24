@@ -35,7 +35,7 @@ After the automated build completes, Vitis still needs to be launched manually t
 
 The diagram below follows the high-level and detailed worker architecture from the root [README](../README.md). It clarifies which components belong to PS and which to PL (implemented in HDL). Several IP blocks (AXI Interconnect, AXI BRAM Controller, AXI Protocol Converter) belong to the AMD IP core library. The RISC-V IP is custom and integrates the selected core with the fault injection/control module.
 
-![SOC Detailed Architecture](../docs/soc_architecture.drawio.png)
+![SOC Detailed Architecture](../docs/soc_architecture.drawio.svg)
 
 #### Programmable Logic
 
