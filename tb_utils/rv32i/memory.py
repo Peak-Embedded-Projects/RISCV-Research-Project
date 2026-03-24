@@ -1,6 +1,6 @@
 from typing import List
 
-from tb_utils.constants import SUB_SEL_REGFILE
+from tb_utils.constants import SUB_SEL_REGFILE, SUB_SEL_FAULT
 
 
 def load_hex_to_mem(file_path: str) -> List[str]:
@@ -57,3 +57,12 @@ def get_reg_addr(reg: int) -> int:
     """
 
     return SUB_SEL_REGFILE | (reg << 2)
+
+
+def get_fault_addr(mode: int, reg: int) -> int:
+    """
+    Calculate 16-bit AXI address for fault injection.
+    Address format: 00mm 0rrrrr00 inside SUB_ADDR.
+    """
+
+    return SUB_SEL_FAULT | ((mode & 0x3) << 8) | ((reg & 0x1F) << 2)

@@ -45,5 +45,7 @@ This is the FPGA design layer. Most blocks from `Architecture/General` belong to
 
 The software part of the framework contains the software-defined part of the control module and communication functions for the Master PC. Sources are in `xilinx/src` and `xilinx/include` and are used during Vitis project creation.
 
+The UART command contract used by the PS firmware and Master PC client is documented in [`docs/uart_protocol.md`](../docs/uart_protocol.md).
+
 The output of `build.py` includes the `xilinx/build/vitis_ws/` directory.
 **Vitis copies sources to a flat workspace, so changes should be made in `xilinx/src/` and `xilinx/include/` to keep them in source control.**

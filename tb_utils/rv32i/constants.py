@@ -52,13 +52,20 @@ AXI_RESP_SLVERR = 0b10
 AXI_RESP_DECERR = 0b11
 
 # Control Module commands
-SUB_SEL_CTRL = 0x01 << 8  # match with latched_address[15:8]
-SUB_SEL_REGFILE = 0x02 << 8  # match with latched_address[15:8]
+SUB_SEL_CTRL = 0x01 << 12  # match with latched_address[15:12]
+SUB_SEL_REGFILE = 0x02 << 12  # match with latched_address[15:12]
+SUB_SEL_FAULT = 0x03 << 12  # match with latched_address[15:12]
 CTRL_REG_STATUS = 0x00
 CTRL_REG_START = 0x04
 CTRL_REG_STOP = 0x08
 CTRL_REG_STEP = 0x0C
 CTRL_REG_PC = 0x10
+CTRL_REG_DBG_VECTOR = 0x1C
+
+FAULT_MODE_OVERWRITE = 0b00
+FAULT_MODE_XOR_MASK = 0b01
+FAULT_MODE_OR_MASK = 0b10
+FAULT_MODE_ANDN_MASK = 0b11
 
 BOOT_ADDR = 0x00000_1000  # boot address (start of instruction memory)
 TRAP_VECTOR = 0x00000_1000  # trap vector for exceptions (e.g., illegal instruction)

@@ -116,9 +116,9 @@ async def test_soc_control(dut):
     dut.regfile_read_data.value = 0xCAFEBABE  # mock register file returning data back
 
     read_result = await axim.read_dword(get_reg_addr(8))
-    assert (
-        read_result == 0xCAFEBABE
-    ), f"Expected 0xCAFEBABE, got {hex(read_result.data)}"
+    assert read_result == 0xCAFEBABE, (
+        f"Expected 0xCAFEBABE, got {hex(read_result.data)}"
+    )
 
     dut._log.info("Test 3: CPU Execution Control")
 

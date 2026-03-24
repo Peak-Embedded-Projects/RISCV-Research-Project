@@ -3,6 +3,7 @@
 `include "rv32i_params.vh"
 `include "rv32i_control.vh"
 `include "axi_configuration.vh"
+`include "cm_commands.vh"
 
 
 module riscv_cpu (
@@ -39,6 +40,10 @@ module riscv_cpu (
     output [    `DATA_WIDTH-1:0] cm_regfile_read_data,
     input                        cm_regfile_we,
     input  [    `DATA_WIDTH-1:0] cm_regfile_write_data,
+    input  [`REG_ADDR_WIDTH-1:0] cm_regfile_fault_addr,
+    input  [`FAULT_MODE_WIDTH-1:0] cm_regfile_fault_mode,
+    input  [    `DATA_WIDTH-1:0] cm_regfile_fault_mask,
+    input                        cm_regfile_fault_enable,
     output [    `DATA_WIDTH-1:0] cm_debug_vector
 );
 
@@ -214,7 +219,12 @@ module riscv_cpu (
         .extra_addr        (cm_regfile_addr),
         .extra_read_data   (cm_regfile_read_data),
         .extra_write_enable(cm_regfile_we),
-        .extra_write_data  (cm_regfile_write_data)
+        .extra_write_data  (cm_regfile_write_data),
+
+        .fault_write_enable(cm_regfile_fault_enable),
+        .fault_addr        (cm_regfile_fault_addr),
+        .fault_mode        (cm_regfile_fault_mode),
+        .fault_mask        (cm_regfile_fault_mask)
     );
 
     memory_arbiter u_memory_arbiter (

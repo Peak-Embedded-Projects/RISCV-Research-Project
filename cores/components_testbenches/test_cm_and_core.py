@@ -64,6 +64,7 @@ from tb_utils.memory import (
     read_program_from_file,
     read_expected_values_from_file,
     get_reg_addr,
+    get_fault_addr,
 )
 
 
@@ -132,6 +133,10 @@ async def test_cm_and_core(dut):
     await reset_active_low(dut.RSTn, dut.CLK)
     dut._log.info("Reset complete. CPU is currently stalled.")
 
+    dut._log.info("Read Debug Vector")
+    read_result = await axim.read_dword(SUB_SEL_CTRL | CTRL_REG_DBG_VECTOR)
+    assert read_result == 0x00001400, log_err(0x00001400, read_result)
+
     await ClockCycles(dut.CLK, 10)
     dut._log.info("Reading Reg 5")
     read_result = await axim.read_dword(get_reg_addr(5))
@@ -160,6 +165,13 @@ async def test_cm_and_core(dut):
     assert read_result == expected_registers_as_list[5], log_err(
         expected_registers_as_list[5], read_result
     )
+
+    dut._log.info("Fault XOR Reg 6 with 0x000000FF while halted")
+    await axim.write_dword(get_fault_addr(FAULT_MODE_XOR_MASK, 6), 0x000000FF)
+
+    dut._log.info("Read Reg 6")
+    read_result = await axim.read_dword(get_reg_addr(6))
+    assert read_result == 0x00000032, log_err(0x00000032, read_result)
 
     dut._log.info("Read Status Reg")
     read_result = await axim.read_dword(SUB_SEL_CTRL | CTRL_REG_STATUS)

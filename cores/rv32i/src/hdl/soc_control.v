@@ -63,6 +63,10 @@ module soc_control (
     input      [    `DATA_WIDTH-1:0] regfile_read_data,
     output reg                       regfile_write_enable,
     output reg [    `DATA_WIDTH-1:0] regfile_write_data,
+    output reg [`REG_ADDR_WIDTH-1:0] regfile_fault_addr,
+    output reg [`FAULT_MODE_WIDTH-1:0] regfile_fault_mode,
+    output reg [    `DATA_WIDTH-1:0] regfile_fault_mask,
+    output reg                       regfile_fault_enable,
     input      [    `DATA_WIDTH-1:0] core_debug_vector,
 
     // AXI4-lite connections
@@ -187,12 +191,14 @@ module soc_control (
     // Read/write collect the responses
     reg regfile_op_successful;
     reg control_op_successful;
+    reg fault_op_successful;
     reg [`DATA_WIDTH-1:0] control_read_data;
     always @(*)
         if (state == `STATE_READ_WAIT_DONE || state == `STATE_WRITE_WAIT_DONE) begin
             case (sub_selector)
                 `SUB_SEL_CTRL:    op_done = 1'b1;  // takes one cycle
                 `SUB_SEL_REGFILE: op_done = 1'b1;  // takes one cycle
+                `SUB_SEL_FAULT:   op_done = 1'b1;  // takes one cycle
                 default:          op_done = 1'b1;  // invalid op always done
             endcase
         end else op_done = 1'b0;
@@ -209,6 +215,10 @@ module soc_control (
                 `SUB_SEL_REGFILE: begin
                     op_successful <= regfile_op_successful;
                     read_data <= regfile_read_data;
+                end
+                `SUB_SEL_FAULT: begin
+                    op_successful <= fault_op_successful;
+                    read_data <= `DATA_WIDTH'b0;
                 end
                 default: begin
                     op_successful <= 1'b0;
@@ -228,8 +238,9 @@ module soc_control (
     // make sure that we do not try to access a register >=32
     wire regfile_addr_in_bounds = (sub_addr[`SUB_ADDR_WIDTH-1:`REG_ADDR_WIDTH+2] == 1'b0);
     wire [`REG_ADDR_WIDTH-1:0] regfile_sub_addr = sub_addr[`REG_ADDR_WIDTH-1+2:2];
+    wire regfile_reg_not_zero = (regfile_sub_addr != `REG_ADDR_WIDTH'b0);  // x0 writes are not allowed
     wire regfile_read_valid = regfile_selected && sub_addr_aligned && regfile_addr_in_bounds;
-    wire regfile_write_valid = regfile_read_valid && write_strobe_full;
+    wire regfile_write_valid = regfile_read_valid && write_strobe_full && regfile_reg_not_zero;
     always @(*) begin
         regfile_addr = `REG_ADDR_WIDTH'b0;
         regfile_write_enable = 1'b0;
@@ -239,18 +250,53 @@ module soc_control (
                 regfile_addr = regfile_read_valid ? regfile_sub_addr : `REG_ADDR_WIDTH'b0;
             end
             `STATE_WRITE_ISSUE: begin
-                regfile_addr = regfile_write_valid ? regfile_sub_addr : `REG_ADDR_WIDTH'b0;
-                regfile_write_enable = regfile_write_valid;
-                regfile_write_data = regfile_write_valid ? latched_write_data : `DATA_WIDTH'b0;
+                if (regfile_selected && regfile_write_valid) begin
+                    regfile_addr = regfile_sub_addr;
+                    regfile_write_enable = 1'b1;
+                    regfile_write_data = latched_write_data;
+                end
             end
         endcase
     end
     always @(*) begin
         regfile_op_successful = 1'b0;
+        if (regfile_selected)
+            case (state)
+                `STATE_READ_WAIT_DONE:  regfile_op_successful = regfile_read_valid;
+                `STATE_WRITE_WAIT_DONE: regfile_op_successful = regfile_write_valid;
+            endcase
+    end
+
+    // Fault Injection
+    // Format: 00mm 0rrrrr00
+    wire fault_selected = (sub_selector == `SUB_SEL_FAULT);
+    wire [`FAULT_MODE_WIDTH-1:0] fault_mode = sub_addr[`FAULT_MODE_MSB:`FAULT_MODE_LSB];
+    wire [`REG_ADDR_WIDTH-1:0] fault_reg_addr = sub_addr[`REG_ADDR_WIDTH-1+2:2];
+    wire fault_addr_valid = (sub_addr[`SUB_ADDR_WIDTH-1:10] == 2'b00) && (sub_addr[7:6] == 2'b00);
+    wire fault_reg_not_zero = (fault_reg_addr != `REG_ADDR_WIDTH'b0);  // x0 writes are not allowed
+    wire fault_write_valid = fault_selected && write_strobe_full && sub_addr_aligned && fault_addr_valid && fault_reg_not_zero;
+    always @(*) begin
+        regfile_fault_addr = `REG_ADDR_WIDTH'b0;
+        regfile_fault_mode = `FAULT_MODE_WIDTH'b0;
+        regfile_fault_mask = `DATA_WIDTH'b0;
+        regfile_fault_enable = 1'b0;
         case (state)
-            `STATE_READ_WAIT_DONE:  regfile_op_successful = regfile_read_valid;
-            `STATE_WRITE_WAIT_DONE: regfile_op_successful = regfile_write_valid;
+            `STATE_WRITE_ISSUE: begin
+                if (fault_selected && fault_write_valid) begin
+                    regfile_fault_addr = fault_reg_addr;
+                    regfile_fault_mode = fault_mode;
+                    regfile_fault_mask = latched_write_data;
+                    regfile_fault_enable = 1'b1;
+                end
+            end
         endcase
+    end
+    always @(*) begin
+        fault_op_successful = 1'b0;
+        if (fault_selected)
+            case (state)
+                `STATE_WRITE_WAIT_DONE: fault_op_successful = fault_write_valid;
+            endcase
     end
 
     // Control registers
