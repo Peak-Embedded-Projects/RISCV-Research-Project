@@ -272,7 +272,7 @@ module soc_control (
     wire fault_selected = (sub_selector == `SUB_SEL_FAULT);
     wire [`FAULT_MODE_WIDTH-1:0] fault_mode = sub_addr[`FAULT_MODE_MSB:`FAULT_MODE_LSB];
     wire [`REG_ADDR_WIDTH-1:0] fault_reg_addr = sub_addr[`REG_ADDR_WIDTH-1+2:2];
-    wire fault_addr_valid = (sub_addr[`SUB_ADDR_WIDTH-1:10] == 2'b00) && (sub_addr[7:6] == 2'b00);
+    wire fault_addr_valid = (sub_addr[`SUB_ADDR_WIDTH-1:10] == 2'b00) && (sub_addr[7:7] == 1'b0);
     wire fault_reg_not_zero = (fault_reg_addr != `REG_ADDR_WIDTH'b0);  // x0 writes are not allowed
     wire fault_write_valid = fault_selected && write_strobe_full && sub_addr_aligned && fault_addr_valid && fault_reg_not_zero;
     always @(*) begin
