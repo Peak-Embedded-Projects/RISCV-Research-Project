@@ -4,11 +4,16 @@
 .text
 .global _start
 _start:
+    # Derive 64 KiB-aligned base from current PC and keep it in gp (x3)
+    auipc x3, 0
+    srli x3, x3, 16
+    slli x3, x3, 16
+
     # Load words from memory into registers x5, x6
-    lw x5, 0(x10)           # x5 = mem[0x1000] = 0x00000001
-    lw x6, 4(x10)           # x6 = mem[0x1004] = 0x00000002
+    lw x5, 0(x3)           # x5 = mem[0x1000] = 0x00000001
+    lw x6, 4(x3)           # x6 = mem[0x1004] = 0x00000002
     sub x20, x5, x6         # subtracts values of x5 and x6 and save results to x20
-    sw x20, 0xC(x0)         # take value from reg x20 and store it in the memory
+    sw x20, 0xC(x3)         # take value from reg x20 and store it in the memory
                             # provided the address that is in x0 offset by 0xC
     # Infinite loop to prevent undefined behavior
 loop:

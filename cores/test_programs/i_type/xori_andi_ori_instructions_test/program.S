@@ -4,9 +4,14 @@
 .global _start
 
 _start:
+    # Derive 64 KiB-aligned base from current PC and keep it in gp (x3)
+    auipc x3, 0
+    srli x3, x3, 16
+    slli x3, x3, 16
+
     # Initialize registers with test values
-    lw x5, 0(x0)    # x5 = 0x0000000A (10 in decimal)
-    lw x6, 4(x0)    # x6 = 0x00000005 (5 in decimal)
+    lw x5, 0(x3)    # x5 = 0x0000000A (10 in decimal)
+    lw x6, 4(x3)    # x6 = 0x00000005 (5 in decimal)
 
     # Test xori (XOR with immediate)
     xori x7, x5, 0x00F   # x7 = x5 ^ 0x00F (0xA ^ 0xF = 0x5)

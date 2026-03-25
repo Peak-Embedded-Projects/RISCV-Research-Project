@@ -161,6 +161,7 @@ dependencies = [
     { name = "click" },
     { name = "cocotb" },
     { name = "cocotbext-axi" },
+    { name = "masterpc" },
     { name = "pytest" },
 ]
 
@@ -169,6 +170,7 @@ requires-dist = [
     { name = "click" },
     { name = "cocotb", specifier = ">=2.0" },
     { name = "cocotbext-axi" },
+    { name = "masterpc", editable = "masterpc" },
     { name = "pytest" },
 ]
 
