@@ -17,24 +17,6 @@ DEMO_PROGRAM: list[int] = [
 ]
 
 
-def upload_words(
-    client: WorkerInterface, base_addr: int, words: list[int], verify: bool = False
-) -> None:
-    client.stop()
-    for idx, word in enumerate(words):
-        client.write_word(base_addr + (idx * 4), word)
-
-    if verify:
-        for idx, expected in enumerate(words):
-            addr = base_addr + (idx * 4)
-            actual = client.read_word(addr)
-            if actual != expected:
-                raise RuntimeError(
-                    f"Upload verify failed at 0x{addr:08X}: "
-                    f"expected 0x{expected:08X}, got 0x{actual:08X}"
-                )
-
-
 def _expect_eq(label: str, actual: int, expected: int) -> None:
     if actual != expected:
         raise RuntimeError(f"{label}: expected 0x{expected:08X}, got 0x{actual:08X}")
@@ -43,8 +25,9 @@ def _expect_eq(label: str, actual: int, expected: int) -> None:
 def run_demo_program_test(client: WorkerInterface) -> None:
     boot_addr = 0x40000000
     data_addr = 0x40001000
-    upload_words(client, boot_addr, DEMO_PROGRAM, verify=True)
-    client.reset(boot_addr)
+    client.upload_words(boot_addr, DEMO_PROGRAM, verify=True)
+    client.stop()
+    client.set_pc(boot_addr)
 
     _expect_eq("PC after reset", client.get_pc(), boot_addr)
 
@@ -86,8 +69,9 @@ def run_fault_injection_test(client: WorkerInterface) -> None:
     data_addr = 0x40001000
     probe_addr = data_addr + 0x40
 
-    upload_words(client, boot_addr, DEMO_PROGRAM, verify=False)
-    client.reset(boot_addr)
+    client.upload_words(boot_addr, DEMO_PROGRAM, verify=False)
+    client.stop()
+    client.set_pc(boot_addr)
 
     # Execute one instruction so x5 holds a known value (0xAB).
     client.step()

@@ -64,11 +64,10 @@ class WorkerInterface:
 
             raise RuntimeError(f"Unexpected SoC response for '{command}': {line!r}")
 
-    def _send_ack(self, command: str) -> str:
+    def _send_ack(self, command: str) -> None:
         response = self.send(command)
         if response != "OK":
             raise RuntimeError(f"Malformed ACK response for '{command}': {response!r}")
-        return response
 
     def _send_u32(self, command: str) -> int:
         response = self.send(command)
@@ -100,49 +99,62 @@ class WorkerInterface:
     def protocol_version(self) -> int:
         return self._send_u32(PROTOCOL_VERSION_CMD)
 
-    def start(self) -> str:
-        return self._send_ack("START")
+    def start(self) -> None:
+        self._send_ack("START")
 
-    def stop(self) -> str:
-        return self._send_ack("STOP")
+    def stop(self) -> None:
+        self._send_ack("STOP")
 
-    def step(self) -> str:
-        return self._send_ack("STEP")
-
-    def reset(self, boot_addr: int | None = None) -> str:
-        if boot_addr is None:
-            return self._send_ack("RESET")
-        return self._send_ack(f"RESET 0x{boot_addr:08X}")
+    def step(self) -> None:
+        self._send_ack("STEP")
 
     def get_pc(self) -> int:
         return self._send_u32(GET_PC_CMD)
 
-    def set_pc(self, pc_addr: int) -> str:
-        return self._send_ack(f"SET_PC 0x{pc_addr:08X}")
+    def set_pc(self, pc_addr: int) -> None:
+        self._send_ack(f"SET_PC 0x{pc_addr:08X}")
 
     def get_reg(self, reg_idx: int) -> int:
         self._check_reg_idx(reg_idx)
         return self._send_u32(f"{GET_REG_CMD} {reg_idx}")
 
+    def set_reg(self, reg_idx: int, value: int) -> None:
+        self._check_reg_idx(reg_idx)
+        self._send_ack(f"SET_REG {reg_idx} 0x{value & 0xFFFFFFFF:08X}")
+
     def read_word(self, addr: int) -> int:
         self._check_word_addr(addr, "addr")
         return self._send_u32(f"{READ_WORD_CMD} 0x{addr:08X}")
 
-    def write_word(self, addr: int, value: int) -> str:
+    def write_word(self, addr: int, value: int) -> None:
         self._check_word_addr(addr, "addr")
-        return self._send_ack(f"WRITE_WORD 0x{addr:08X} 0x{value & 0xFFFFFFFF:08X}")
+        self._send_ack(f"WRITE_WORD 0x{addr:08X} 0x{value & 0xFFFFFFFF:08X}")
 
-    def fault_reg(self, reg_idx: int, mode: int, mask: int) -> str:
+    def fault_reg(self, reg_idx: int, mode: int, mask: int) -> None:
         self._check_reg_idx(reg_idx)
         self._check_mode(mode)
-        return self._send_ack(f"FAULT_REG {reg_idx} {mode} 0x{mask & 0xFFFFFFFF:08X}")
+        self._send_ack(f"FAULT_REG {reg_idx} {mode} 0x{mask & 0xFFFFFFFF:08X}")
 
-    def fault_mem(self, addr: int, mode: int, mask: int) -> str:
+    def fault_mem(self, addr: int, mode: int, mask: int) -> None:
         self._check_word_addr(addr, "addr")
         self._check_mode(mode)
-        return self._send_ack(
-            f"FAULT_MEM 0x{addr:08X} {mode} 0x{mask & 0xFFFFFFFF:08X}"
-        )
+        self._send_ack(f"FAULT_MEM 0x{addr:08X} {mode} 0x{mask & 0xFFFFFFFF:08X}")
+
+    def upload_words(
+        self, base_addr: int, words: list[int], verify: bool = False
+    ) -> None:
+        for idx, word in enumerate(words):
+            self.write_word(base_addr + (idx * 4), word)
+
+        if verify:
+            for idx, expected in enumerate(words):
+                addr = base_addr + (idx * 4)
+                actual = self.read_word(addr)
+                if actual != expected:
+                    raise RuntimeError(
+                        f"Upload verify failed at 0x{addr:08X}: "
+                        f"expected 0x{expected:08X}, got 0x{actual:08X}"
+                    )
 
 
 def read_words_from_text(path: pathlib.Path) -> list[int]:

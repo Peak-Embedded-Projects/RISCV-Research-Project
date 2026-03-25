@@ -126,19 +126,6 @@ int main(void) {
       continue;
     }
 
-    if (strcmp(cmd, "RESET") == 0) {
-      uint32_t boot_addr = BRAM_BASE_ADDR;
-      char *boot_token = next_token();
-      if (boot_token != NULL && !parse_u32(boot_token, &boot_addr)) {
-        xil_printf("ERR BAD_BOOT_ADDR\n");
-        continue;
-      }
-      cm_core_stop();
-      cm_pc_set(boot_addr);
-      reply_ok();
-      continue;
-    }
-
     if (strcmp(cmd, "GET_PC") == 0) {
       reply_ok_u32(cm_pc_read());
       continue;
@@ -162,6 +149,18 @@ int main(void) {
         continue;
       }
       reply_ok_u32(cm_regfile_read((uint8_t)reg_idx));
+      continue;
+    }
+
+    if (strcmp(cmd, "SET_REG") == 0) {
+      uint32_t reg_idx = 0;
+      uint32_t value = 0;
+      if (!parse_next_u32(&reg_idx) || !parse_next_u32(&value) || reg_idx > 31u) {
+        xil_printf("ERR BAD_REG\n");
+        continue;
+      }
+      cm_regfile_write((uint8_t)reg_idx, value);
+      reply_ok();
       continue;
     }
 
