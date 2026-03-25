@@ -2,7 +2,7 @@
 name = "riscv-build"
 version = "0.1.0"
 requires-python = "==3.13.*"
-dependencies = ["click", "pytest", "cocotb>=2.0", "cocotbext-axi"]
+dependencies = ["click", "pytest", "cocotb>=2.0", "cocotbext-axi", "masterpc"]
 
 
 [tool.uv.workspace]
