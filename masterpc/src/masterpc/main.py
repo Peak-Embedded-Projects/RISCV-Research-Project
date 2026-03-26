@@ -3,15 +3,17 @@ from __future__ import annotations
 import argparse
 import sys
 
+from .execute_tests import execute_all_test_cases
 from .demo_workflow import run_demo_program_test, run_fault_injection_test
 from .worker_interface import WorkerInterface
 
 
 def run_command(args: argparse.Namespace) -> int:
     with WorkerInterface(args.port, args.timeout, verbose=args.verbose) as client:
-        run_demo_program_test(client)
-        run_fault_injection_test(client)
-    print("Demo program test and fault-injection smoke test passed!")
+        # run_demo_program_test(client)
+        # run_fault_injection_test(client)
+        # print("Demo program test and f(ault-injection smoke test passed!")
+        execute_all_test_cases(client)
     return 0
 
 
